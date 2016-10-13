@@ -1,0 +1,35 @@
+{
+  "name": "my-app",
+  "version": "1.0.0",
+  "description": "A general template for an Enact Moonstone application.",
+  "author": "",
+  "main": "src/index.js",
+  "scripts": {
+    "serve": "enact serve",
+    "pack": "enact pack",
+    "pack-p": "enact pack -p",
+    "watch": "enact pack --watch",
+    "clean": "enact clean",
+    "lint": "enact lint .",
+    "test": "enact test start --single-run --browsers PhantomJS",
+    "test-json": "enact test start --single-run --browsers PhantomJS --reporters json",
+    "test-watch": "enact test start --browsers PhantomJS"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "repository": "",
+  "enact": {
+    "isomorphic": "src/iso.js",
+    "ri": {
+      "baseSize":24
+    }
+  },
+  "eslintConfig": {
+    "extends": "enact"
+  },
+  "dependencies": {
+    "enact": "github:enyojs/enact#feature/PLAT-27518",
+    "react": "^15.3.2",
+    "react-dom": "^15.3.2"
+  }
+}
