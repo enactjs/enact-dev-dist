@@ -94,7 +94,7 @@ module.exports = function(karma) {
 					{test: /\.(c|le)ss$/, loader: ExtractTextPlugin.extract('style',
 							'css?-autoprefixer&modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]!postcss!less?sourceMap')
 					},
-					{test: /ilibmanifest\.json$/, loader: 'ilib'},
+					{test: /ilibmanifest\.json$/, loader: 'ilib?noSave'},
 					{test: /\.json$/, loader: 'json', exclude: /ilibmanifest\.json$/},
 					{test: /\.(ico|jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2)(\?.*)?$/, loader: 'file',
 						query: {
@@ -110,7 +110,7 @@ module.exports = function(karma) {
 				],
 				noParse: /node_modules\/json-schema\/lib\/validate\.js/
 			},
-			devServer: {host: '0.0.0.0', port: 8080, stats: 'errors-only'},
+			devServer: {host: '0.0.0.0', port: 8080},
 			postcss: function() {
 				return [autoprefixer({browsers: ['>1%', 'last 4 versions', 'Firefox ESR', 'not ie < 9']})];
 			},
@@ -131,7 +131,20 @@ module.exports = function(karma) {
 		},
 
 		webpackServer: {
-			noInfo: true // please don't spam the console when running in karma!
+			// please don't spam the console when running in karma!
+			noInfo: true,
+			progress: false,
+			stats: {
+				assets: false,
+				chunkModules: false,
+				chunks: false,
+				colors: true,
+				errorDetails: false,
+				hash: false,
+				reasons: false,
+				timings: false,
+				version: false
+			}
 		},
 
 		plugins: [
