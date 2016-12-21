@@ -1,8 +1,61 @@
+## 0.5.0 (December 20, 2016)
+
+Several additional documentation files have been added to the `docs` directory, to cover common topics.
+
+### create
+
+* Template updated for Enact 1.0.0-beta.1
+* Template has been updated to use a single isomorphic-compatible entrypoint [index.js](https://github.com/enyojs/enact-dev/blob/master/template/src/index.js).
+
+## serve
+
+* Added support for `--host` option to specify a server host IP address to use.
+* Added support for `--port` option to specify a server port humber to use.
+* The host/port details will now correctly output when linter warnings occur.
+
+### pack
+
+* Added primary support for singluar entrypoints for both regular and isomorphic code layouts.
+* Refactored build customization features (like `--isomorphic` and `--stats`) into separate files and cleaned up the implementations.
+* Depreciated isomorphic HTML-side rendering. Isomorphic entrypoints should render to the DOM when in a browser environment.
+
+### clean
+
+* Fixed clean command failing due to missing internal parameters.
+
+
+## 0.4.0 (December 5, 2016)
+
+### create
+
+* Renamed `init` command to `create` for clarity of purpose.
+* Template updated for Enact 1.0.0-alpha.4
+
+### transpile
+
+* Fixed fs-extra depreciation warning about using a RegExp in copying.
+
+### pack
+
+* Added support for overriding with a custom HTML template.
+* Viewport meta tags added to restrict user-scale to 1.
+* Documented `package.json` Enact build options in README.md.
+* Fixed app rendering in isomorphic code layout, where apps exported as ES6 default would fail to render.
+* Fixed ReactPerf bundling with React 15.4.x, with backwards support for earlier versions.
+* Fixed `--watch` support.
+
+### test
+
+* Properly ignore ./dist and ./build directories when searching for tests.
+* Removed unneeded sourcemap support to greatly improved memory management and avoid js heap crashes in PhantomJS.
+
+
 ## 0.3.0 (November 7, 2016)
 
 ### init
 
 * Sanitizes directory name so only valid characters are included as the package name.
+* Template updated for Enact 1.0.0-alpha.3
 
 ### pack
 
@@ -29,6 +82,7 @@
 * Verifies the user has a compatible Node version.
 * Verifies the destination directory is safe to create a project in.
 * Template now include webOS meta files (appinfo.json, icons.png, etc.).
+* Template updated for Enact 1.0.0-alpha.2
 * The package.json and appinfo.json will update their respective `name`/`id` to the project directory's name.
 * Added `--verbose` flag option to provide detailed logging.
 * Added `--link` flag option to link any dependencies that have been `npm link` rathen than install.

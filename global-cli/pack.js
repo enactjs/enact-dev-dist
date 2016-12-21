@@ -14,17 +14,12 @@ var
 	fs = require('fs-extra'),
 	path = require('path'),
 	minimist = require('minimist'),
-	glob = require('glob'),
 	filesize = require('filesize'),
-	exists = require('path-exists').sync,
 	rimrafSync = require('rimraf').sync,
 	webpack = require('webpack'),
+	modifiers = require('./modifiers'),
 	devConfig = require('../config/webpack.config.dev'),
 	prodConfig = require('../config/webpack.config.prod'),
-	EnactFrameworkPlugin = require('../config/EnactFrameworkPlugin'),
-	EnactFrameworkRefPlugin = require('../config/EnactFrameworkRefPlugin'),
-	PrerenderPlugin = require('../config/PrerenderPlugin'),
-	BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin,
 	checkRequiredFiles = require('react-dev-utils/checkRequiredFiles'),
 	recursive = require('recursive-readdir'),
 	stripAnsi = require('strip-ansi');
@@ -56,7 +51,7 @@ function getDifferenceLabel(currentSize, previousSize) {
 // Print a detailed summary of build files.
 function printFileSizes(stats, previousSizeMap) {
 	var assets = stats.toJson().assets
-		.filter(asset => /\.(js|css)$/.test(asset.name))
+		.filter(asset => /\.(js|css|bin)$/.test(asset.name))
 		.map(asset => {
 			var fileContents = fs.readFileSync('./dist/' + asset.name);
 			var size = fs.statSync('./dist/' + asset.name).size;
@@ -85,110 +80,6 @@ function printFileSizes(stats, previousSizeMap) {
 			'	' + chalk.dim(asset.folder + path.sep) + chalk.cyan(asset.name)
 		);
 	});
-}
-
-function readJSON(file) {
-	try {
-		return JSON.parse(fs.readFileSync(file, {encoding:'utf8'}));
-	} catch(e) {
-		return undefined;
-	}
-}
-
-function externalFramework(config, external, inject) {
-	// Add the reference plugin so the app uses the external framework
-	config.plugins.push(new EnactFrameworkRefPlugin({
-		name:'enact_framework',
-		libraries:['@enact', 'react', 'react-dom'],
-		external: {
-			path: external,
-			inject: inject
-		}
-	}));
-}
-
-function setupFramework(config) {
-	// Form list of framework entries; Every @enact/* js file as well as react/react-dom
-	var entry = glob.sync('@enact/**/*.@(js|jsx|es6)', {
-		cwd: path.resolve('./node_modules'),
-		nodir: true,
-		ignore: [
-			'./webpack.config.js',
-			'./.eslintrc.js',
-			'./karma.conf.js',
-			'./build/**/*.*',
-			'./dist/**/*.*',
-			'./node_modules/**/*.*',
-			'**/tests/*.js'
-		]
-	}).concat(['react', 'react-dom', 'react/lib/ReactPerf']);
-	config.entry = {enact:entry};
-
-	// Use universal module definition to allow usage and name as 'enact_framework'
-	config.output.library = 'enact_framework';
-	config.output.libraryTarget = 'umd';
-
-	// Append additional options to the ilib-loader to skip './resources' detection/generation
-	config.module.loaders[2].loader += '?noSave&noResources';
-
-	// Remove the HTML generation plugin and webOS-meta plugin
-	config.plugins.shift();
-	config.plugins.pop();
-
-	// Add the framework plugin to build in an externally accessible manner
-	config.plugins.push(new EnactFrameworkPlugin());
-}
-
-function setupIsomorphic(config) {
-	var meta = readJSON('package.json') || {};
-	var enact = meta.enact || {};
-	// Only use isomorphic if an isomorphic entrypoint is specified
-	if(enact.isomorphic || enact.prerender) {
-		var reactDOM = path.join(process.cwd(), 'node_modules', 'react-dom');
-		if(!exists(reactDOM)) {
-			reactDOM = require.resolve('react-dom');
-		}
-		// Include react-dom as top level entrypoint so espose-loader will expose
-		// it to window.ReactDOM to allow runtime rendering of the app.
-		config.entry.main.unshift(reactDOM);
-
-		// The App entrypoint for isomorphics builds *must* export a ReactElement.
-		config.entry.main[config.entry.main.length-1] = path.resolve(enact.isomorphic || enact.prerender);
-
-		// Since we're building for isomorphic usage, expose ReactElement
-		config.output.library = 'App';
-
-		// Use universal module definition to allow usage in Node and browser environments.
-		config.output.libraryTarget = 'umd';
-
-		// Expose the 'react-dom' on a global context for App's rendering
-		// Currently maps the toolset to window.ReactDOM.
-		config.module.loaders.push({
-			test: reactDOM,
-			loader: 'expose?ReactDOM'
-		});
-
-		// Update HTML webpack plugin to use the isomorphic template and include screentypes
-		config.plugins[0].options.inject = false;
-		config.plugins[0].options.template = path.join(__dirname, '..', 'config',
-				'html-template-isomorphic.ejs');
-		config.plugins[0].options.screenTypes = enact.screenTypes
-				|| readJSON('./node_modules/@enact/moonstone/MoonstoneDecorator/screenTypes.json')
-				|| readJSON('./node_modules/enact/packages/moonstone/MoonstoneDecorator/screenTypes.json');
-
-		// Include plugin to prerender the html into the index.html
-		config.plugins.push(new PrerenderPlugin());
-	} else {
-		console.log(chalk.yellow('Isomorphic entrypoint not found in package.json; building normally'));
-	}
-}
-
-function statsAnalyzer(config) {
-	config.plugins.push(new BundleAnalyzerPlugin({
-		analyzerMode: 'static',
-		reportFilename: 'stats.html',
-		openAnalyzer: false
-	}));
 }
 
 // Create the build and optionally, print the deployment instructions.
@@ -232,7 +123,7 @@ function watch(config) {
 	} else {
 		console.log('Creating an optimized production build and watching for changes...');
 	}
-	webpack(config).watch((err, stats) => {
+	webpack(config).watch({}, (err, stats) => {
 		if (err) {
 			console.error('Failed to create ' + process.env.NODE_ENV + ' build. Reason:');
 			console.error(err.message || err);
@@ -257,8 +148,9 @@ function displayHelp() {
 	console.log();
 	/*
 		Hidden Options:
-			--framework           Builds the @enact/*, react, and react-dom into an external framework
+			--snapshot            Extension of isomorphic code layout which builds for V8 snapshot support
 			--no-minify           Will skip minification during production build
+			--framework           Builds the @enact/*, react, and react-dom into an external framework
 			--externals           Specify a local directory path to the standalone external framework
 			--externals-inject    Remote public path to the external framework for use injecting into HTML
 	*/
@@ -267,44 +159,23 @@ function displayHelp() {
 
 module.exports = function(args) {
 	var opts = minimist(args, {
-		boolean: ['minify', 'framework', 's', 'stats', 'p', 'production', 'i', 'isomorphic', 'w', 'watch', 'h', 'help'],
+		boolean: ['minify', 'framework', 's', 'stats', 'p', 'production', 'i', 'isomorphic', 'snapshot', 'w', 'watch', 'h', 'help'],
 		string: ['externals', 'externals-inject'],
 		default: {minify:true},
 		alias: {s:'stats', p:'production', i:'isomorphic', w:'watch', h:'help'}
 	});
 	opts.help && displayHelp();
 
-	var config;
+	process.env.NODE_ENV = 'development';
+	var config = devConfig;
 
 	// Do this as the first thing so that any code reading it knows the right env.
 	if(opts.production) {
 		process.env.NODE_ENV = 'production';
 		config = prodConfig;
-		if(!opts['minify']) {
-			// Allow Uglify's optimizations/debug-code-removal but don't minify
-			config.plugins[4].options.mangle = false;
-			config.plugins[4].options.beautify = true;
-			config.plugins[4].options.output.comments = true;
-		}
-	} else {
-		process.env.NODE_ENV = 'development';
-		config = devConfig;
 	}
 
-	if(opts.framework) {
-		setupFramework(config);
-	} else {
-		if(opts.isomorphic) {
-			setupIsomorphic(config);
-		}
-		if(opts.externals) {
-			externalFramework(config, opts.externals, opts['externals-inject']);
-		}
-	}
-
-	if(opts.stats) {
-		statsAnalyzer(config);
-	}
+	modifiers.apply(config, opts);
 
 	// Warn and crash if required files are missing
 	if (!opts.framework && !checkRequiredFiles([config.entry.main[config.entry.main.length-1]])) {
@@ -318,7 +189,7 @@ module.exports = function(args) {
 		// This lets us display how much they changed later.
 		recursive('dist', (err, fileNames) => {
 			var previousSizeMap = (fileNames || [])
-				.filter(fileName => /\.(js|css)$/.test(fileName))
+				.filter(fileName => /\.(js|css|bin)$/.test(fileName))
 				.reduce((memo, fileName) => {
 					var key = shortFilename(fileName);
 					memo[key] = fs.statSync(fileName).size;
