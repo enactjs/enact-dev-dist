@@ -24,6 +24,8 @@ function inflateShrinkwrap (topPath, tree, swdeps, finishInflating) {
   var onDisk = {}
   tree.children.forEach(function (child) { onDisk[moduleName(child)] = child })
   tree.children = []
+  var dev = npm.config.get('dev') || (!/^prod(uction)?$/.test(npm.config.get('only')) && !npm.config.get('production')) || /^dev(elopment)?$/.test(npm.config.get('only'))
+  var prod = !/^dev(elopment)?$/.test(npm.config.get('only'))
   return asyncMap(Object.keys(swdeps), doRealizeAndInflate, finishInflating)
 
   function doRealizeAndInflate (name, next) {
@@ -34,6 +36,7 @@ function inflateShrinkwrap (topPath, tree, swdeps, finishInflating) {
     return function (requested) {
       var sw = swdeps[name]
       var dependencies = sw.dependencies || {}
+      if ((!prod && !sw.dev) || (!dev && sw.dev)) return next()
       var child = onDisk[name]
       if (childIsEquivalent(sw, requested, child)) {
         if (!child.fromShrinkwrap) child.fromShrinkwrap = requested.raw
@@ -42,14 +45,16 @@ function inflateShrinkwrap (topPath, tree, swdeps, finishInflating) {
         return inflateShrinkwrap(topPath, child, dependencies || {}, next)
       } else {
         var from = sw.from || requested.raw
-        return fetchPackageMetadata(requested, topPath, iferr(next, andAddShrinkwrap(from, dependencies, next)))
+        var optional = sw.optional
+        return fetchPackageMetadata(requested, topPath, iferr(next, andAddShrinkwrap(from, optional, dependencies, next)))
       }
     }
   }
 
-  function andAddShrinkwrap (from, dependencies, next) {
+  function andAddShrinkwrap (from, optional, dependencies, next) {
     return function (pkg) {
       pkg._from = from
+      pkg._optional = optional
       addShrinkwrap(pkg, iferr(next, andAddBundled(pkg, dependencies, next)))
     }
   }

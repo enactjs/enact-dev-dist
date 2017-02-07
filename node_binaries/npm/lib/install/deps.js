@@ -21,7 +21,7 @@ var inflateShrinkwrap = require('./inflate-shrinkwrap.js')
 var inflateBundled = require('./inflate-bundled.js')
 var andFinishTracker = require('./and-finish-tracker.js')
 var npm = require('../npm.js')
-var flatName = require('./flatten-tree.js').flatName
+var flatNameFromTree = require('./flatten-tree.js').flatNameFromTree
 var createChild = require('./node.js').create
 var resetMetadata = require('./node.js').reset
 var andIgnoreErrors = require('./and-ignore-errors.js')
@@ -30,6 +30,7 @@ var packageId = require('../utils/package-id.js')
 var moduleName = require('../utils/module-name.js')
 var isDevDep = require('./is-dev-dep.js')
 var isProdDep = require('./is-prod-dep.js')
+var reportOptionalFailure = require('./report-optional-failure.js')
 
 // The export functions in this module mutate a dependency tree, adding
 // items to them.
@@ -63,11 +64,26 @@ function doesChildVersionMatch (child, requested, requestor) {
   if (requested.spec === '*') return true
 
   var childReq = child.package._requested
+  if (!childReq) childReq = npa(moduleName(child) + '@' + child.package._from)
   if (childReq) {
     if (childReq.rawSpec === requested.rawSpec) return true
     if (childReq.type === requested.type && childReq.spec === requested.spec) return true
   }
-  if (!registryTypes[requested.type]) return requested.rawSpec === child.package._from
+  // If _requested didn't exist OR if it didn't match then we'll try using
+  // _from. We pass it through npa to normalize the specifier.
+  // This can happen when installing from an `npm-shrinkwrap.json` where `_requested` will
+  // be the tarball URL from `resolved` and thus can't match what's in the `package.json`.
+  // In those cases _from, will be preserved and we can compare that to ensure that they
+  // really came from the same sources.
+  // You'll see this scenario happen with at least tags and git dependencies.
+  if (!registryTypes[requested.type]) {
+    if (child.package._from) {
+      var fromReq = npa(child.package._from)
+      if (fromReq.rawSpec === requested.rawSpec) return true
+      if (fromReq.type === requested.type && fromReq.spec === requested.spec) return true
+    }
+    return false
+  }
   return semver.satisfies(child.package.version, requested.spec)
 }
 
@@ -310,14 +326,16 @@ function andForEachChild (load, next) {
   }
 }
 
-function isDepOptional (tree, name) {
+function isDepOptional (tree, name, pkg) {
+  if (pkg.package && pkg.package._optional) return true
   if (!tree.package.optionalDependencies) return false
   if (tree.package.optionalDependencies[name] != null) return true
   return false
 }
 
 var failedDependency = exports.failedDependency = function (tree, name_pkg) {
-  var name, pkg
+  var name
+  var pkg = {}
   if (typeof name_pkg === 'string') {
     name = name_pkg
   } else {
@@ -326,7 +344,7 @@ var failedDependency = exports.failedDependency = function (tree, name_pkg) {
   }
   tree.children = tree.children.filter(noModuleNameMatches(name))
 
-  if (isDepOptional(tree, name)) {
+  if (isDepOptional(tree, name, pkg)) {
     return false
   }
 
@@ -349,18 +367,6 @@ var failedDependency = exports.failedDependency = function (tree, name_pkg) {
   return false
 }
 
-function top (tree) {
-  if (tree.parent) return top(tree.parent)
-  return tree
-}
-
-function treeWarn (tree, what, error) {
-  var topTree = top(tree)
-  if (!topTree.warnings) topTree.warnings = []
-  error.optional = flatNameFromTree(tree) + '/' + what
-  topTree.warnings.push(error)
-}
-
 function andHandleOptionalErrors (log, tree, name, done) {
   validate('OOSF', arguments)
   return function (er, child, childLog) {
@@ -369,7 +375,7 @@ function andHandleOptionalErrors (log, tree, name, done) {
     var isFatal = failedDependency(tree, name)
     if (er && !isFatal) {
       tree.children = tree.children.filter(noModuleNameMatches(name))
-      treeWarn(tree, name, er)
+      reportOptionalFailure(tree, name, er)
       return done()
     } else {
       return done(er, child, childLog)
@@ -468,14 +474,6 @@ var updatePhantomChildren = exports.updatePhantomChildren = function (current, c
   }
 }
 
-function flatNameFromTree (tree) {
-  validate('O', arguments)
-  if (tree.isTop) return '/'
-  var path = flatNameFromTree(tree.parent)
-  if (path !== '/') path += '/'
-  return flatName(path, tree)
-}
-
 exports._replaceModuleByPath = replaceModuleByPath
 function replaceModuleByPath (obj, key, child) {
   return replaceModule(obj, key, child, function (replacing, child) {
@@ -509,50 +507,46 @@ function replaceModule (obj, key, child, matchBy) {
 function resolveWithNewModule (pkg, tree, log, next) {
   validate('OOOF', arguments)
 
-  if (!pkg._installable) {
-    log.silly('resolveWithNewModule', packageId(pkg), 'checking installable status')
-    return isInstallable(pkg, iferr(next, function () {
-      pkg._installable = true
-      resolveWithNewModule(pkg, tree, log, next)
-    }))
-  }
+  log.silly('resolveWithNewModule', packageId(pkg), 'checking installable status')
+  return isInstallable(pkg, iferr(next, function () {
+    if (!pkg._from) {
+      pkg._from = pkg._requested.name + '@' + pkg._requested.spec
+    }
+    addShrinkwrap(pkg, iferr(next, function () {
+      addBundled(pkg, iferr(next, function () {
+        var parent = earliestInstallable(tree, tree, pkg) || tree
+        var child = createChild({
+          package: pkg,
+          parent: parent,
+          path: path.join(parent.path, 'node_modules', pkg.name),
+          realpath: path.resolve(parent.realpath, 'node_modules', pkg.name),
+          children: pkg._bundled || [],
+          isLink: tree.isLink,
+          knownInstallable: true
+        })
+        delete pkg._bundled
+        var hasBundled = child.children.length
 
-  if (!pkg._from) {
-    pkg._from = pkg._requested.name + '@' + pkg._requested.spec
-  }
-  addShrinkwrap(pkg, iferr(next, function () {
-    addBundled(pkg, iferr(next, function () {
-      var parent = earliestInstallable(tree, tree, pkg) || tree
-      var child = createChild({
-        package: pkg,
-        parent: parent,
-        path: path.join(parent.path, 'node_modules', pkg.name),
-        realpath: path.resolve(parent.realpath, 'node_modules', pkg.name),
-        children: pkg._bundled || [],
-        isLink: tree.isLink
-      })
-      delete pkg._bundled
-      var hasBundled = child.children.length
+        var replaced = replaceModuleByName(parent, 'children', child)
+        if (replaced) removeObsoleteDep(replaced)
+        addRequiredDep(tree, child, function () {
+          child.location = flatNameFromTree(child)
 
-      var replaced = replaceModuleByName(parent, 'children', child)
-      if (replaced) removeObsoleteDep(replaced)
-      addRequiredDep(tree, child, function () {
-        child.location = flatNameFromTree(child)
+          if (tree.parent && parent !== tree) updatePhantomChildren(tree.parent, child)
 
-        if (tree.parent && parent !== tree) updatePhantomChildren(tree.parent, child)
+          if (hasBundled) {
+            inflateBundled(child, child.children)
+          }
 
-        if (hasBundled) {
-          inflateBundled(child, child.children)
-        }
+          if (pkg._shrinkwrap && pkg._shrinkwrap.dependencies) {
+            return inflateShrinkwrap(child, pkg._shrinkwrap.dependencies, function (er) {
+              next(er, child, log)
+            })
+          }
 
-        if (pkg._shrinkwrap && pkg._shrinkwrap.dependencies) {
-          return inflateShrinkwrap(child, pkg._shrinkwrap.dependencies, function (er) {
-            next(er, child, log)
-          })
-        }
-
-        next(null, child, log)
-      })
+          next(null, child, log)
+        })
+      }))
     }))
   }))
 }
@@ -620,13 +614,13 @@ var earliestInstallable = exports.earliestInstallable = function (requiredBy, tr
 
   // If any of the children of this tree have conflicting
   // binaries then we need to decline to install this package here.
-  var binaryMatches = typeof pkg.bin === 'object' && tree.children.some(function (child) {
-    if (child.removed) return false
-    if (typeof child.package.bin !== 'object') return false
+  var binaryMatches = pkg.bin && tree.children.some(function (child) {
+    if (child.removed || !child.package.bin) return false
     return Object.keys(child.package.bin).some(function (bin) {
       return pkg.bin[bin]
     })
   })
+
   if (binaryMatches) return null
 
   // if this tree location requested the same module then we KNOW it

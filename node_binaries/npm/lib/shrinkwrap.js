@@ -21,6 +21,7 @@ var output = require('./utils/output.js')
 var lifecycle = require('./utils/lifecycle.js')
 var isDevDep = require('./install/is-dev-dep.js')
 var isProdDep = require('./install/is-prod-dep.js')
+var isOptDep = require('./install/is-opt-dep.js')
 
 shrinkwrap.usage = 'npm shrinkwrap'
 
@@ -34,26 +35,25 @@ function shrinkwrap (args, silent, cb) {
     log.warn('shrinkwrap', "doesn't take positional args")
   }
 
-  var dir = path.resolve(npm.dir, '..')
   var packagePath = path.join(npm.localPrefix, 'package.json')
   var dev = !!npm.config.get('dev') || /^dev(elopment)?$/.test(npm.config.get('also'))
 
   readPackageJson(packagePath, iferr(cb, function (pkg) {
-    createShrinkwrap(dir, pkg, dev, silent, cb)
+    createShrinkwrap(npm.localPrefix, pkg, dev, silent, cb)
   }))
 }
 
 module.exports.createShrinkwrap = createShrinkwrap
 
 function createShrinkwrap (dir, pkg, dev, silent, cb) {
-  lifecycle(pkg, 'preshrinkwrap', function () {
+  lifecycle(pkg, 'preshrinkwrap', dir, function () {
     readPackageTree(dir, andRecalculateMetadata(iferr(cb, function (tree) {
       var pkginfo = treeToShrinkwrap(tree, dev)
 
       chain([
-        [lifecycle, tree.package, 'shrinkwrap'],
+        [lifecycle, tree.package, 'shrinkwrap', dir],
         [shrinkwrap_, pkginfo, silent],
-        [lifecycle, tree.package, 'postshrinkwrap']
+        [lifecycle, tree.package, 'postshrinkwrap', dir]
       ], iferr(cb, function (data) {
         cb(null, data[0])
       }))
@@ -99,7 +99,8 @@ function shrinkwrapDeps (dev, problems, deps, tree, seen) {
     }
   })
   tree.children.sort(function (aa, bb) { return moduleName(aa).localeCompare(moduleName(bb)) }).forEach(function (child) {
-    if (!dev && isOnlyDev(child)) {
+    var childIsOnlyDev = isOnlyDev(child)
+    if (!dev && childIsOnlyDev) {
       log.warn('shrinkwrap', 'Excluding devDependency: %s', child.location)
       return
     }
@@ -107,6 +108,8 @@ function shrinkwrapDeps (dev, problems, deps, tree, seen) {
     pkginfo.version = child.package.version
     pkginfo.from = child.package._from
     pkginfo.resolved = child.package._resolved
+    if (dev && childIsOnlyDev) pkginfo.dev = true
+    if (isOptional(child)) pkginfo.optional = true
     if (isExtraneous(child)) {
       problems.push('extraneous: ' + child.package._id + ' ' + child.path)
     }
@@ -178,4 +181,18 @@ function andIsOnlyDev (name, seen) {
       return isOnlyDev(req, seen)
     }
   }
+}
+
+function isOptional (node, seen) {
+  if (!seen) seen = {}
+  // If a node is not required by anything, then we've reached
+  // the top level package.
+  if (seen[node.path] || node.requiredBy.length === 0) {
+    return false
+  }
+  seen[node.path] = true
+
+  return node.requiredBy.every(function (req) {
+    return isOptDep(req, node.package.name) || isOptional(req, seen)
+  })
 }
