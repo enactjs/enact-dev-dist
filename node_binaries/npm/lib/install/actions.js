@@ -3,14 +3,13 @@ var path = require('path')
 var validate = require('aproba')
 var chain = require('slide').chain
 var asyncMap = require('slide').asyncMap
-var iferr = require('iferr')
+var log = require('npmlog')
 var andFinishTracker = require('./and-finish-tracker.js')
 var andAddParentToErrors = require('./and-add-parent-to-errors.js')
 var failedDependency = require('./deps.js').failedDependency
+var packageId = require('../utils/package-id.js')
 var moduleName = require('../utils/module-name.js')
 var buildPath = require('./build-path.js')
-var reportOptionalFailure = require('./report-optional-failure.js')
-var isInstallable = require('./validate-args.js').isInstallable
 
 var actions = {}
 
@@ -46,23 +45,7 @@ Object.keys(actions).forEach(function (actionName) {
       if (!pkg.commit) pkg.commit = []
       pkg.commit.push(action.commit)
     }
-    if (pkg.knownInstallable) {
-      return thenRunAction()
-    } else {
-      return isInstallable(pkg.package, iferr(andDone(next), andMarkInstallable(thenRunAction)))
-    }
-    function andMarkInstallable (cb) {
-      return function () {
-        pkg.knownInstallable = true
-        cb()
-      }
-    }
-    function thenRunAction () {
-      action(top, buildpath, pkg, log, andDone(next))
-    }
-    function andDone (cb) {
-      return andFinishTracker(log, andAddParentToErrors(pkg.parent, andHandleOptionalDepErrors(pkg, cb)))
-    }
+    return action(top, buildpath, pkg, log, andFinishTracker(log, andAddParentToErrors(pkg.parent, andHandleOptionalDepErrors(pkg, next))))
   }
 })
 
@@ -87,7 +70,8 @@ function andHandleOptionalDepErrors (pkg, next) {
       if (isFatal) anyFatal = true
     }
     if (anyFatal) return next.apply(null, arguments)
-    reportOptionalFailure(pkg, null, er)
+    log.warn('install:' + packageId(pkg), er.message)
+    log.verbose('install:' + packageId(pkg), er.stack)
     next()
   }
 }

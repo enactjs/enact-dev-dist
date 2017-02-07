@@ -291,12 +291,8 @@ Installer.prototype.run = function (cb) {
         self.idealTree.warnings.forEach(function (warning) {
           if (warning.code === 'EPACKAGEJSON' && self.global) return
           if (warning.code === 'ENOTDIR') return
-          var output = errorMessage(warning)
-          output.summary.forEach(function (logline) {
+          errorMessage(warning).summary.forEach(function (logline) {
             log.warn.apply(log, logline)
-          })
-          output.detail.forEach(function (logline) {
-            log.verbose.apply(log, logline)
           })
         })
       }

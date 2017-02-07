@@ -102,8 +102,7 @@ BundledPacker.prototype.applyIgnores = function (entry, partial, entryObj) {
       entry === '.npmrc' ||
       entry.match(/^\..*\.swp$/) ||
       entry === '.DS_Store' ||
-      entry.match(/^\._/) ||
-      entry.match(/^.*\.orig$/)
+      entry.match(/^\._/)
     ) {
     return false
   }

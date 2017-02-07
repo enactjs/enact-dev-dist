@@ -177,7 +177,6 @@ function fetchNamedPackageData (dep, next) {
                   : 'No valid targets found.'
       var er = new Error('No compatible version found: ' +
                          dep.raw + '\n' + targets)
-      er.code = 'ETARGET'
       return next(er)
     }
   }))

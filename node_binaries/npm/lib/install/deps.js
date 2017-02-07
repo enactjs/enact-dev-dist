@@ -21,7 +21,7 @@ var inflateShrinkwrap = require('./inflate-shrinkwrap.js')
 var inflateBundled = require('./inflate-bundled.js')
 var andFinishTracker = require('./and-finish-tracker.js')
 var npm = require('../npm.js')
-var flatNameFromTree = require('./flatten-tree.js').flatNameFromTree
+var flatName = require('./flatten-tree.js').flatName
 var createChild = require('./node.js').create
 var resetMetadata = require('./node.js').reset
 var andIgnoreErrors = require('./and-ignore-errors.js')
@@ -30,7 +30,6 @@ var packageId = require('../utils/package-id.js')
 var moduleName = require('../utils/module-name.js')
 var isDevDep = require('./is-dev-dep.js')
 var isProdDep = require('./is-prod-dep.js')
-var reportOptionalFailure = require('./report-optional-failure.js')
 
 // The export functions in this module mutate a dependency tree, adding
 // items to them.
@@ -350,6 +349,18 @@ var failedDependency = exports.failedDependency = function (tree, name_pkg) {
   return false
 }
 
+function top (tree) {
+  if (tree.parent) return top(tree.parent)
+  return tree
+}
+
+function treeWarn (tree, what, error) {
+  var topTree = top(tree)
+  if (!topTree.warnings) topTree.warnings = []
+  error.optional = flatNameFromTree(tree) + '/' + what
+  topTree.warnings.push(error)
+}
+
 function andHandleOptionalErrors (log, tree, name, done) {
   validate('OOSF', arguments)
   return function (er, child, childLog) {
@@ -358,7 +369,7 @@ function andHandleOptionalErrors (log, tree, name, done) {
     var isFatal = failedDependency(tree, name)
     if (er && !isFatal) {
       tree.children = tree.children.filter(noModuleNameMatches(name))
-      reportOptionalFailure(tree, name, er)
+      treeWarn(tree, name, er)
       return done()
     } else {
       return done(er, child, childLog)
@@ -457,6 +468,14 @@ var updatePhantomChildren = exports.updatePhantomChildren = function (current, c
   }
 }
 
+function flatNameFromTree (tree) {
+  validate('O', arguments)
+  if (tree.isTop) return '/'
+  var path = flatNameFromTree(tree.parent)
+  if (path !== '/') path += '/'
+  return flatName(path, tree)
+}
+
 exports._replaceModuleByPath = replaceModuleByPath
 function replaceModuleByPath (obj, key, child) {
   return replaceModule(obj, key, child, function (replacing, child) {
@@ -490,46 +509,50 @@ function replaceModule (obj, key, child, matchBy) {
 function resolveWithNewModule (pkg, tree, log, next) {
   validate('OOOF', arguments)
 
-  log.silly('resolveWithNewModule', packageId(pkg), 'checking installable status')
-  return isInstallable(pkg, iferr(next, function () {
-    if (!pkg._from) {
-      pkg._from = pkg._requested.name + '@' + pkg._requested.spec
-    }
-    addShrinkwrap(pkg, iferr(next, function () {
-      addBundled(pkg, iferr(next, function () {
-        var parent = earliestInstallable(tree, tree, pkg) || tree
-        var child = createChild({
-          package: pkg,
-          parent: parent,
-          path: path.join(parent.path, 'node_modules', pkg.name),
-          realpath: path.resolve(parent.realpath, 'node_modules', pkg.name),
-          children: pkg._bundled || [],
-          isLink: tree.isLink,
-          knownInstallable: true
-        })
-        delete pkg._bundled
-        var hasBundled = child.children.length
+  if (!pkg._installable) {
+    log.silly('resolveWithNewModule', packageId(pkg), 'checking installable status')
+    return isInstallable(pkg, iferr(next, function () {
+      pkg._installable = true
+      resolveWithNewModule(pkg, tree, log, next)
+    }))
+  }
 
-        var replaced = replaceModuleByName(parent, 'children', child)
-        if (replaced) removeObsoleteDep(replaced)
-        addRequiredDep(tree, child, function () {
-          child.location = flatNameFromTree(child)
+  if (!pkg._from) {
+    pkg._from = pkg._requested.name + '@' + pkg._requested.spec
+  }
+  addShrinkwrap(pkg, iferr(next, function () {
+    addBundled(pkg, iferr(next, function () {
+      var parent = earliestInstallable(tree, tree, pkg) || tree
+      var child = createChild({
+        package: pkg,
+        parent: parent,
+        path: path.join(parent.path, 'node_modules', pkg.name),
+        realpath: path.resolve(parent.realpath, 'node_modules', pkg.name),
+        children: pkg._bundled || [],
+        isLink: tree.isLink
+      })
+      delete pkg._bundled
+      var hasBundled = child.children.length
 
-          if (tree.parent && parent !== tree) updatePhantomChildren(tree.parent, child)
+      var replaced = replaceModuleByName(parent, 'children', child)
+      if (replaced) removeObsoleteDep(replaced)
+      addRequiredDep(tree, child, function () {
+        child.location = flatNameFromTree(child)
 
-          if (hasBundled) {
-            inflateBundled(child, child.children)
-          }
+        if (tree.parent && parent !== tree) updatePhantomChildren(tree.parent, child)
 
-          if (pkg._shrinkwrap && pkg._shrinkwrap.dependencies) {
-            return inflateShrinkwrap(child, pkg._shrinkwrap.dependencies, function (er) {
-              next(er, child, log)
-            })
-          }
+        if (hasBundled) {
+          inflateBundled(child, child.children)
+        }
 
-          next(null, child, log)
-        })
-      }))
+        if (pkg._shrinkwrap && pkg._shrinkwrap.dependencies) {
+          return inflateShrinkwrap(child, pkg._shrinkwrap.dependencies, function (er) {
+            next(er, child, log)
+          })
+        }
+
+        next(null, child, log)
+      })
     }))
   }))
 }
