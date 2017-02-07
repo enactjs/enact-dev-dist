@@ -53,7 +53,7 @@ SnapshotPlugin.prototype.apply = function(compiler) {
 	var opts = this.options;
 
 	compiler.plugin('after-emit', function(compilation, callback) {
-		if(isNodeOutputFS(compiler) && opts.exec) {
+		if(isNodeOutputFS(compiler) && opts.exec && !process.env.SKIP_SNAPSHOT) {
 			var ssCache = path.join(findCacheDir({
 					name: 'enact-dev',
 					create: true

@@ -52,6 +52,7 @@ PrerenderPlugin.prototype.apply = function(compiler) {
 					if(e.stack) {
 						console.log(e.stack);
 					}
+					process.env.SKIP_SNAPSHOT = 'skip';
 					console.log();
 					console.log('Continuing build without prerendering...');
 				}
