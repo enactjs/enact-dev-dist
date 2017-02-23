@@ -78,7 +78,8 @@ Finally, enable all of the rules that you would like to use:
 # List of supported rules
 
 * [enact/kind-name](docs/rules/display-name.md): Prevent missing `name` in a Enact component definition
-* [react/prop-types](docs/rules/prop-types.md): Prevent missing props validation in a React component definition
+* enact/display-name: Prevent missing `displayName` in a React component definitions without false-flagging Enact kinds
+* [enact/prop-types](docs/rules/prop-types.md): Prevent missing props validation in a React component definition
 
 ## Other useful plugins
 

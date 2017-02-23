@@ -249,6 +249,16 @@ function componentRule(rule, context) {
           && utils.isKindComponent(node.parent.parent.parent.parent);
     },
 
+    isHandlersKindProp: function(node) {
+      return node.parent
+          && node.parent.parent
+          && node.parent.parent.parent
+          && node.parent.parent.parent.key
+          && node.parent.parent.parent.key.name==='handlers'
+          && node.parent.parent.parent.parent
+          && utils.isKindComponent(node.parent.parent.parent.parent);
+    },
+
     /**
      * Check if the node is returning JSX
      *
@@ -390,9 +400,9 @@ function componentRule(rule, context) {
         }
         // Return the node if it is a function that is not a class method
         if (isFunction && !isMethod) {
-          // if stateless function is an Enact kind computed property, ignore
-          if(utils.isComputedKindProp(node)) {
-            return null;
+          // if stateless function is an Enact kind computed property, return the kind
+          if(utils.isComputedKindProp(node) || utils.isHandlersKindProp(node)) {
+            return(node.parent.parent.parent.parent);
           } else {
             return node;
           }

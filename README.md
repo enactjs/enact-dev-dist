@@ -13,7 +13,7 @@ npm install -g enyojs/enact-dev
 The only time you're ever want to directly use the Enact CLI is when you want to create a new project.
 
 ```sh
-enact init [directory]
+enact create [directory]
 ```
 
 This will generate a basic App template, complete with npm scripts and dependencies setup. If no directory path is specified, it will be generated within the working directory.
@@ -52,6 +52,32 @@ Runs the Enact configuration of Eslint on the project for syntax analysis.
 These tasks will execute all valid tests (files that end in `-specs.js`) that are within the project directory. The `test` is a standard execution pass, `test-json` uses a json reporter for output, and `test-watch` will set up a watcher to re-execute tests when files change.
 
 
+## Enact Build Options
+
+The enact-dev tool will check the project's `package.json` looking for an optional `enact` object for a few customization options:
+
+* `template` _[string]_ - Filepath to an alternate HTML template to use with the [Webpack html-webpack-plugin](https://github.com/ampedandwired/html-webpack-plugin).
+* `isomorphic` _[boolean|string]_ - If `true`, it indicates the default entrypoint is isomorphic-compatible (and can be built via the `--isomorphic` enact-dev flag). If the value is a string, then it will use that value as a filepath to a custom isomorphic-compatible entrypoint.
+* `title` _[string]_ - Title text that should be put within the HTML's `<title></title>` tags. Note: if this is a webOS-project, the title by default will be auto-detected from the appinfo.json content.
+* `ri` _[object]_ - Resolution independence options to be forwarded to the [LESS plugin](https://github.com/enyojs/less-plugin-resolution-independence).
+* `node` _[object]_ - Configuration settings for polyfilling NodeJS built-ins. See `node` [webpack option](https://webpack.github.io/docs/configuration.html#node).
+* `proxy` _[string]_ - Proxy target during project `serve` to be used within the [http-proxy-middleware](https://github.com/chimurai/http-proxy-middleware).
+
+For example:
+```js
+{
+	...
+	"enact": {
+		"isomorphic": true,
+		"ri": {
+			"baseSize":24
+		}
+	}
+	...
+} 
+```
+
+
 ## Displaying Lint Output in the Editor
 
 Some editors, including Sublime Text, Atom, and Visual Studio Code, provide plugins for ESLint.
@@ -69,8 +95,7 @@ You would need to install an ESLint plugin for your editor first.
 Then, you will need to install some packages *globally*:
 
 ```sh
-npm install -g enyojs/eslint-config-enact eslint-plugin-react eslint-plugin-babel babel-eslint
-
+npm install -g eslint eslint-plugin-react eslint-plugin-babel babel-eslint enyojs/eslint-plugin-enact enyojs/eslint-config-enact
 ```
 
 We recognize that this is suboptimal, but it is currently required due to the way we hide the ESLint dependency. The ESLint team is already [working on a solution to this](https://github.com/eslint/eslint/issues/3458) so this may become unnecessary in a couple of months.

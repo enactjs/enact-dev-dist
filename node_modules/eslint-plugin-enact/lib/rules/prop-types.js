@@ -149,6 +149,19 @@ module.exports = {
     }
 
     /**
+     * Checks if we are declaring a computed prop
+     * @param {ASTNode} node The AST node being checked.
+     * @returns {Boolean} True if we are declaring a computed prop, false if not.
+     */
+    function isKindHandlersDeclaration(node) {
+      return !!(node.parent
+          && node.parent.key
+          && node.parent.key.name==='handlers'
+          && node.parent.parent
+          && components.get(node.parent.parent));
+    }
+
+    /**
      * Checks if we are declaring a prop
      * @param {ASTNode} node The AST node being checked.
      * @returns {Boolean} True if we are declaring a prop, false if not.
@@ -226,7 +239,7 @@ module.exports = {
 
         if (!propType) {
           // If it's a computed property, we can't make any further analysis, but is valid
-          return key === '__COMPUTED_PROP__';
+          return (key === '__COMPUTED_PROP__') || (key === '__HANDLERS_PROP__');
         }
         if (propType === true) {
           return true;
@@ -530,6 +543,8 @@ module.exports = {
           case 'Identifier':
             if (node.computed) {
               return '__COMPUTED_PROP__';
+            } else if (node.handlers) {
+              return '__HANDLERS_PROP__';
             }
             return property.name;
           case 'MemberExpression':
@@ -543,6 +558,8 @@ module.exports = {
           default:
             if (node.computed) {
               return '__COMPUTED_PROP__';
+            } else if (node.handlers) {
+              return '__HANDLERS_PROP__';
             }
             break;
         }
@@ -568,6 +585,23 @@ module.exports = {
     }
 
     /**
+     * Mark handlers prop types
+     * @param {ASTNode} node The AST node being marked.
+     */
+    function markHandlersPropTypes(node) {
+      var component = components.get(utils.getParentComponent());
+      var handlers = component && component.handlersProps || [];
+      for(var i=0; i<node.properties.length; i++) {
+        if(node.properties[i] && node.properties[i].key && node.properties[i].key.name) {
+          handlers.push(node.properties[i].key.name);
+        }
+      }
+      components.set(node, {
+        handlersProps: handlers
+      });
+    }
+
+    /**
      * Mark a prop type as used
      * @param {ASTNode} node The AST node being marked.
      */
@@ -577,6 +611,8 @@ module.exports = {
       var name;
       var allNames;
       var properties;
+      var paramsIndex;
+      var isComputed;
       switch (node.type) {
         case 'MemberExpression':
           name = getPropertyName(node);
@@ -586,7 +622,7 @@ module.exports = {
               markPropTypesAsUsed(node.parent, allNames);
             }
             // Do not mark computed props as used.
-            type = name !== '__COMPUTED_PROP__' ? 'direct' : null;
+            type = ((name !== '__COMPUTED_PROP__') && (name !== '__HANDLERS_PROP__')) ? 'direct' : null;
           } else if (
             node.parent.id &&
             node.parent.id.properties &&
@@ -602,9 +638,13 @@ module.exports = {
         case 'FunctionExpression':
           type = 'destructuring';
           properties = [];
-          if(node && node.params && node.params[0] && node.params[0].properties) {
-            for(var n=0; n<node.params[0].properties.length; n++) {
-              var prop = node.params[0].properties[n];
+          // Handlers destructure props as the 2nd argument
+          paramsIndex = isKindHandlerFunction(node) ? 1 : 0;
+          isComputed = isKindComputedFunction(node);
+
+          if(node && node.params && node.params[paramsIndex] && node.params[paramsIndex].properties) {
+            for(var n=0; n<node.params[paramsIndex].properties.length; n++) {
+              var prop = node.params[paramsIndex].properties[n];
               if(prop.argument && prop.argument.name && hasSpreadOperator(prop)) {
                 // search for usage to detect properties
                 var spreadName = prop.argument.name;
@@ -628,6 +668,9 @@ module.exports = {
                   }
                 };
                 scanUsage(node);
+              } else if (isComputed && prop.key && prop.key.name === 'styler') {
+                // Ignore 'styler' inside computed functions
+                continue;
               } else {
                 properties.push(prop);
               }
@@ -683,7 +726,7 @@ module.exports = {
           break;
         case 'destructuring':
           for (var k = 0, l = properties.length; k < l; k++) {
-            if (hasSpreadOperator(properties[k]) || properties[k].computed) {
+            if (hasSpreadOperator(properties[k]) || properties[k].computed || properties[k].handlers) {
               continue;
             }
             var propName = getKeyValue(properties[k]);
@@ -807,14 +850,15 @@ module.exports = {
         if (
           isIgnored(allNames[0]) ||
           isDeclaredInComponent(component.node, allNames) ||
-          (component.computedProps && component.computedProps.indexOf(allNames[0])>=0)
+          (component.computedProps && component.computedProps.indexOf(allNames[0])>=0) ||
+          (component.handlersProps && component.handlersProps.indexOf(allNames[0])>=0)
         ) {
           continue;
         }
         context.report(
           component.usedPropTypes[i].node,
           MISSING_MESSAGE, {
-            name: allNames.join('.').replace(/\.__COMPUTED_PROP__/g, '[]')
+            name: allNames.join('.').replace(/\.__COMPUTED_PROP__/g, '[]').replace(/\.__HANDLERS_PROP__/g, '[]')
           }
         );
       }
@@ -857,12 +901,42 @@ module.exports = {
     }
 
     /**
+     * Checks if a given component is a computed function of an Enact kind component
+     *
+     * @param {ASTNode} node The function we are checking against
+     * @returns {Boolean} True if Node is an Enact kind component's computed function
+     */
+    function isKindComputedFunction(node) {
+      return node.parent
+          && node.parent.parent
+          && isKindComputedDeclaration(node.parent.parent)
+          && node.parent.parent.parent
+          && node.parent.parent.parent.parent
+          && utils.isKindComponent(node.parent.parent.parent.parent);
+    }
+
+    /**
+     * Checks if a given component is a handler function of an Enact kind component
+     *
+     * @param {ASTNode} node The function we are checking against
+     * @returns {Boolean} True if Node is an Enact kind component's handler function
+     */
+    function isKindHandlerFunction(node) {
+      return node.parent
+          && node.parent.parent
+          && isKindHandlersDeclaration(node.parent.parent)
+          && node.parent.parent.parent
+          && node.parent.parent.parent.parent
+          && utils.isKindComponent(node.parent.parent.parent.parent);
+    }
+
+    /**
      * @param {ASTNode} node We expect either an ArrowFunctionExpression,
      *   FunctionDeclaration, or FunctionExpression
      */
     function markDestructuredFunctionArgumentsAsUsed(node) {
       var destructuring = node.params && node.params[0] && node.params[0].type === 'ObjectPattern';
-      if (isKindRender(node) || (destructuring && components.get(node))) {
+      if (isKindRender(node) || isKindComputedFunction(node) || isKindHandlerFunction(node) || (destructuring && components.get(node))) {
         markPropTypesAsUsed(node);
       }
     }
@@ -968,7 +1042,10 @@ module.exports = {
         // Search for the proptypes declaration
         if(isKindComputedDeclaration(node)) {
           markComputedPropTypes(node);
+        } else if(isKindHandlersDeclaration(node)) {
+          markHandlersPropTypes(node);
         }
+
         node.properties.forEach(function(property) {
           if (!isPropTypesDeclaration(property.key)) {
             return;
