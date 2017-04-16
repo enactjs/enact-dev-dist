@@ -18,7 +18,7 @@ npm install lolex
 ```
 
 If you want to use Lolex in a browser you can use [the pre-built
-version](https://github.com/sinonjs/lolex/edit/master/lolex.js) available in the repo
+version](https://github.com/sinonjs/lolex/blob/master/lolex.js) available in the repo
 and the npm package. Using npm you only need to reference `./node_modules/lolex/lolex.js` in your `<script>` tags.
 
 You are always free to [build it yourself](https://github.com/sinonjs/lolex/blob/53ea4d9b9e5bcff53cc7c9755dc9aa340368cf1c/package.json#L22), of course.
@@ -147,7 +147,7 @@ Clears the timer given the ID or timer object, as long as it was created using
 
 ### `var id = clock.setImmediate(callback)`
 
-Schedules the callback, to be fired once `0` milliseconds have ticked by. Note
+Schedules the callback to be fired once `0` milliseconds have ticked by. Note
 that you'll still have to call `clock.tick()` for the callback to fire. If
 called during a tick the callback won't fire until `1` millisecond has ticked
 by.
