@@ -46,13 +46,15 @@ PrerenderPlugin.prototype.apply = function(compiler) {
 				if(file === opts.chunk) {
 					try {
 						compilation.applyPlugins('prerender-chunk', {chunk:opts.chunk});
+						vdomServer.stage(compilation.assets[opts.chunk].source(), opts);
 						status.prerender = vdomServer.render({
 							server: opts.server,
-							code: vdomServer.prepare(compilation.assets[opts.chunk].source(), opts),
 							file: opts.chunk,
 							externals: opts.externals
 						});
+						vdomServer.unstage();
 					} catch(e) {
+						vdomServer.unstage();
 						// Report error but continue executing without prerendering.
 						status.err = e;
 						console.log();

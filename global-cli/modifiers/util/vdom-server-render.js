@@ -6,6 +6,8 @@
  */
 
 var path = require('path'),
+	fs = require('fs'),
+	findCacheDir = require('find-cache-dir'),
 	nodeFetch = require('node-fetch'),
 	vm = require('vm'),
 	FileXHR = require('./FileXHR');
@@ -18,6 +20,7 @@ var m = {
 };
 var sandbox = Object.assign({
 	require: require,
+	requireUncached: require('import-fresh'),
 	module: m,
 	exports: m.exports,
 	__dirname: process.cwd(),
@@ -28,6 +31,7 @@ var sandbox = Object.assign({
 	Request: nodeFetch.Request
 }, global);
 var context = vm.createContext(sandbox);
+var renderTarget = path.join(findCacheDir({name: 'enact-dev', create:true}), './main.js');
 
 /*
 	Options:
@@ -38,7 +42,7 @@ var context = vm.createContext(sandbox);
 		externals		filepath to external Enact framework to use with rendering
 */
 module.exports = {
-	prepare: function(code, opts) {
+	stage: function(code, opts) {
 		code = code.replace('return __webpack_require__(0);', '__webpack_require__.e = function() {};\nreturn __webpack_require__(0);');
 
 		if(opts.externals) {
@@ -46,16 +50,17 @@ module.exports = {
 			code = code.replace(/require\(["']enact_framework["']\)/g, 'require("'
 					+ path.resolve(path.join(opts.externals, 'enact.js')) +  '")');
 		}
-		return code;
+		fs.writeFileSync(renderTarget, code, {encoding:'utf8'});
 	},
 
 	render: function(opts) {
 		var rendered;
 
 		if(opts.locale) {
-			sandbox.XMLHttpRequest = FileXHR;
+			sandbox.XMLHttpRequest = sandbox.global.XMLHttpRequest = FileXHR;
 		} else {
 			delete sandbox.XMLHttpRequest;
+			delete sandbox.global.XMLHttpRequest;
 		}
 
 		try {
@@ -64,13 +69,14 @@ module.exports = {
 			if(opts.externals) {
 				// Ensure locale switching  support is loaded globally with external framework usage.
 				var framework = require(path.resolve(path.join(opts.externals, 'enact.js')));
-				sandbox.iLibLocale = framework('@enact/i18n/locale');
+				sandbox.iLibLocale = sandbox.global.iLibLocale = framework('@enact/i18n/locale');
 			} else {
-				delete sandbox.iLibLocale
+				delete sandbox.iLibLocale;
+				delete sandbox.global.iLibLocale;
 			}
 
 			m.exports = {};
-			vm.runInContext(opts.code, context, {
+			vm.runInContext('module.exports = requireUncached("' + path.resolve(renderTarget) + '");', context, {
 				filename: opts.file,
 				displayErrors: true
 			});
@@ -78,7 +84,7 @@ module.exports = {
 			// Update locale if needed.
 			if(opts.locale && sandbox.iLibLocale && sandbox.iLibLocale.updateLocale) {
 				console.resume();
-				sandbox.iLibLocale.updateLocale(opts.locale);
+				sandbox.global.iLibLocale.updateLocale(opts.locale);
 				console.mute();
 			}
 
@@ -90,5 +96,11 @@ module.exports = {
 			throw e;
 		}
 		return rendered;
+	},
+
+	unstage: function() {
+		if(fs.existsSync(renderTarget)) {
+			fs.unlinkSync(renderTarget);
+		}
 	}
 };

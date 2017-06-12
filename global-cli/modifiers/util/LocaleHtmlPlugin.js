@@ -282,7 +282,8 @@ LocaleHtmlPlugin.prototype.apply = function(compiler) {
 			compilation.plugin('chunk-asset', function(chunk, file) {
 				if(file === opts.chunk) {
 					compilation.applyPlugins('prerender-chunk', {chunk:opts.chunk, locales:locales});
-					var src = vdomServer.prepare(compilation.assets[opts.chunk].source(), opts), locStr;
+					vdomServer.stage(compilation.assets[opts.chunk].source(), opts);
+					var  locStr;
 					for(var i=0; i<locales.length; i++) {
 						try {
 							// Prerender the locale.
@@ -290,7 +291,6 @@ LocaleHtmlPlugin.prototype.apply = function(compiler) {
 							compilation.applyPlugins('prerender-localized', {chunk:opts.chunk, locale:locStr});
 							var appHtml = vdomServer.render({
 								server: opts.server,
-								code: src,
 								locale: locStr,
 								file: opts.chunk.replace(/\.js$/, '.' + locStr + '.js'),
 								externals: opts.externals
@@ -319,6 +319,7 @@ LocaleHtmlPlugin.prototype.apply = function(compiler) {
 							status.err[locales[i]] = e;
 						}
 					}
+					vdomServer.unstage();
 					// Simplify out aliases and group together for minimal file output.
 					simplifyAliases(locales, status);
 				}
