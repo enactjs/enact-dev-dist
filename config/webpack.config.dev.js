@@ -33,6 +33,7 @@ function readJSON(file) {
 
 var pkg = readJSON('package.json') || {};
 var enact = pkg.enact || {};
+var reactPerf = path.resolve(path.join('node_modules', 'react-dom', 'lib', 'ReactPerf.js'));
 
 // This is the development configuration.
 // It is focused on developer experience and fast rebuilds.
@@ -48,7 +49,7 @@ module.exports = {
 			// Include a few polyfills by default (Promise, Object.assign, and fetch)
 			require.resolve('./polyfills'),
 			// Include React performance tools for debugging/optimization testing
-			require.resolve('react-addons-perf'),
+			reactPerf,
 			// Finally, this is your app's code
 			path.resolve(pkg.main || 'index.js')
 		]
@@ -174,7 +175,7 @@ module.exports = {
 			// Expose the 'react-addons-perf' on a global context for debugging.
 			// Currently maps the toolset to window.ReactPerf.
 			{
-				test: require.resolve('react-addons-perf'),
+				test: reactPerf,
 				loader: 'expose?ReactPerf'
 			}
 		]
