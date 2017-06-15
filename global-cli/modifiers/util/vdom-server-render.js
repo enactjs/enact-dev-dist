@@ -82,7 +82,7 @@ module.exports = {
 			});
 
 			// Update locale if needed.
-			if(opts.locale && sandbox.iLibLocale && sandbox.iLibLocale.updateLocale) {
+			if(opts.locale && sandbox.global.iLibLocale && sandbox.global.iLibLocale.updateLocale) {
 				console.resume();
 				sandbox.global.iLibLocale.updateLocale(opts.locale);
 				console.mute();
