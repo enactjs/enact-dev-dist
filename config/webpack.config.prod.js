@@ -39,7 +39,7 @@ module.exports = {
 	// Don't attempt to continue if there are any errors.
 	bail: true,
 	// Skip source map support
-	devtool: null,
+	devtool: 'source-map',
 	// In production, we only want to load the polyfills and the app code.
 	entry: {
 		main: [
