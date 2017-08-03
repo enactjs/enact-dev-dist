@@ -1,4 +1,4 @@
-var
+const
 	path = require('path'),
 	fs = require('fs-extra'),
 	chalk = require('chalk'),
@@ -17,14 +17,14 @@ function readJSON(file) {
 }
 
 module.exports = function(config, opts) {
-	var meta = readJSON('package.json') || {};
-	var enact = meta.enact || {};
-	var iso = enact.isomorphic || enact.prerender;
+	const meta = readJSON('./package.json') || {};
+	const enact = meta.enact || {};
+	const iso = enact.isomorphic || enact.prerender;
 
 	// Only use isomorphic if an isomorphic entrypoint is specified.
 	if(iso) {
 		// Resolve ReactDOMSever relative to the app, with enact-dev's copy as fallback.
-		var reactDOMServer = path.join(process.cwd(), 'node_modules', 'react-dom', 'server.js');
+		let reactDOMServer = path.join(process.cwd(), 'node_modules', 'react-dom', 'server.js');
 		if(!exists(reactDOMServer)) {
 			reactDOMServer = require.resolve('react-dom/server');
 		}
@@ -32,12 +32,13 @@ module.exports = function(config, opts) {
 		if(!opts.externals) {
 			// Expose iLib locale utility function module so we can update the locale on page load, if used.
 			if(opts.locales) {
-				var locale = path.join(process.cwd(), 'node_modules', '@enact', 'i18n', 'locale', 'locale.js');
+				const locale = path.join(process.cwd(), 'node_modules', '@enact', 'i18n', 'locale', 'locale.js');
 				if(exists(locale)) {
-					var babel = helper.findLoader(config, 'babel');
-					config.module.loaders.splice((babel>=0 ? babel : 0), 0, {
+					const babel = helper.findLoader(config, 'babel');
+					config.module.rules.splice((babel>=0 ? babel : 0), 0, {
 						test: fs.realpathSync(locale),
-						loader: 'expose?iLibLocale'
+						loader: 'expose-loader',
+						options: 'iLibLocale'
 					});
 				}
 			}
@@ -55,7 +56,7 @@ module.exports = function(config, opts) {
 		config.output.libraryTarget = 'umd';
 
 		// Include plugin to prerender the html into the index.html
-		var prerenderOpts = {
+		const prerenderOpts = {
 			server: require(reactDOMServer),
 			locales: opts.locales,
 			externals: opts.externals,

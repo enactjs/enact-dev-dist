@@ -70,8 +70,10 @@ Finally, enable all of the rules that you would like to use:
 
 ```json
   "rules": {
-    "enact/kind-name": "error",
-    "enact/prop-types": "error"
+    "enact/kind-name": 1,
+    "enact/display-name": 1,
+    "enact/prop-types": 1,
+    "enact/no-module-exports-import": 2
   }
 ```
 
@@ -80,6 +82,7 @@ Finally, enable all of the rules that you would like to use:
 * [enact/kind-name](docs/rules/display-name.md): Prevent missing `name` in a Enact component definition
 * enact/display-name: Prevent missing `displayName` in a React component definitions without false-flagging Enact kinds
 * [enact/prop-types](docs/rules/prop-types.md): Prevent missing props validation in a React component definition
+* [enact/no-module-exports-import](docs/rules/no-module-exports-import.md): Disallow module.exports with import statements (see [webpack issue #4039](https://github.com/webpack/webpack/issues/4039))
 
 ## Other useful plugins
 
