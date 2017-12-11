@@ -145,14 +145,6 @@ function load_ (builtin, rc, cli, cb) {
     conf.once('load', afterUser)
   }
 
-  function cutTail(str, tail) {
-    var position = str.length-tail.length;
-    if (position>=0 && str.substring(position) === tail) {
-      return str.substring(0, position);
-    }
-    return str;
-  }
-
   function afterUser () {
     // globalconfig and globalignorefile defaults
     // need to respond to the 'prefix' setting up to this point.
@@ -160,7 +152,7 @@ function load_ (builtin, rc, cli, cb) {
     // return `~/local/etc/npmrc`
     // annoying humans and their expectations!
     if (conf.get('prefix')) {
-      var etc = path.resolve(cutTail(conf.get('prefix'), '/opt/enact-dev/node_binaries'), 'etc')
+      var etc = path.resolve(conf.get('prefix'), 'etc')
       mkdirp(etc, function () {
         defaults.globalconfig = path.resolve(etc, 'npmrc')
         defaults.globalignorefile = path.resolve(etc, 'npmignore')
@@ -216,7 +208,7 @@ inherits(Conf, CC)
 function Conf (base) {
   if (!(this instanceof Conf)) return new Conf(base)
 
-  CC.apply(this)
+  CC.call(this)
 
   if (base) {
     if (base instanceof Conf) {
@@ -233,7 +225,6 @@ Conf.prototype.loadPrefix = require('./load-prefix.js')
 Conf.prototype.loadCAFile = require('./load-cafile.js')
 Conf.prototype.loadUid = require('./load-uid.js')
 Conf.prototype.setUser = require('./set-user.js')
-Conf.prototype.findPrefix = require('./find-prefix.js')
 Conf.prototype.getCredentialsByURI = require('./get-credentials-by-uri.js')
 Conf.prototype.setCredentialsByURI = require('./set-credentials-by-uri.js')
 Conf.prototype.clearCredentialsByURI = require('./clear-credentials-by-uri.js')
