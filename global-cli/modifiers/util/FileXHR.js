@@ -1,4 +1,4 @@
-var
+const
 	fs = require('fs'),
 	exists = require('path-exists').sync;
 
@@ -20,9 +20,7 @@ FileXHR.prototype.send = function() {
 			this.uri = this.uri.replace(new RegExp('^' + process.env.ILIB_BASE_PATH),
 					'node_modules/@enact/i18n/ilib');
 		}
-		var parsedURI = this.uri.replace(/\\/g, '/').replace(/^(_\/)+/g, function(match) {
-			return match.replace(/_/g, '..');
-		});
+		const parsedURI = this.uri.replace(/\\/g, '/').replace(/^(_\/)+/g, (match) => match.replace(/_/g, '..'));
 		try {
 			if(!exists(parsedURI)) throw new Error('File not found: ' + this.uri);
 

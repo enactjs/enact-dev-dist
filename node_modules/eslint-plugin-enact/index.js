@@ -3,7 +3,8 @@
 var rules = {
   'prop-types': require('./lib/rules/prop-types'),
   'kind-name': require('./lib/rules/kind-name'),
-  'display-name': require('./lib/rules/display-name')
+  'display-name': require('./lib/rules/display-name'),
+  'no-module-exports-import': require('./lib/rules/no-module-exports-import')
 };
 
 var ruleNames = Object.keys(rules);
@@ -32,7 +33,8 @@ module.exports = {
       rules: {
         'enact/prop-types': 2,
         'enact/kind-name': 2,
-        'enact/display-name': 2
+        'enact/display-name': 2,
+        'enact/no-module-exports-import': 1
       },
     },
     all: {

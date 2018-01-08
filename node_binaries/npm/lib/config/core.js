@@ -216,7 +216,7 @@ inherits(Conf, CC)
 function Conf (base) {
   if (!(this instanceof Conf)) return new Conf(base)
 
-  CC.apply(this)
+  CC.call(this)
 
   if (base) {
     if (base instanceof Conf) {
@@ -233,7 +233,6 @@ Conf.prototype.loadPrefix = require('./load-prefix.js')
 Conf.prototype.loadCAFile = require('./load-cafile.js')
 Conf.prototype.loadUid = require('./load-uid.js')
 Conf.prototype.setUser = require('./set-user.js')
-Conf.prototype.findPrefix = require('./find-prefix.js')
 Conf.prototype.getCredentialsByURI = require('./get-credentials-by-uri.js')
 Conf.prototype.setCredentialsByURI = require('./set-credentials-by-uri.js')
 Conf.prototype.clearCredentialsByURI = require('./clear-credentials-by-uri.js')

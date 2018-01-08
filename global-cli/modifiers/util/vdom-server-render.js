@@ -5,43 +5,37 @@
  *  for a given javascript virtualdom Enact codebase.
  */
 
-var path = require('path'),
+const path = require('path'),
 	fs = require('fs'),
-	findCacheDir = require('find-cache-dir'),
 	nodeFetch = require('node-fetch'),
-	vm = require('vm'),
+	findCacheDir = require('find-cache-dir'),
+	requireUncached = require('import-fresh'),
 	FileXHR = require('./FileXHR');
 
 require('console.mute');
 
-// Setup a generic shared context to run App code within
-var m = {
-	exports:{}
-};
-var sandbox = Object.assign({
-	require: require,
-	requireUncached: require('import-fresh'),
-	module: m,
-	exports: m.exports,
-	__dirname: process.cwd(),
-	__filename: 'main.js',
-	fetch: nodeFetch,
-	Response: nodeFetch.Response,
-	Headers: nodeFetch.Headers,
-	Request: nodeFetch.Request
-}, global);
-var context = vm.createContext(sandbox);
-var renderTarget = path.join(findCacheDir({name: 'enact-dev', create:true}), './main.js');
+global.fetch = nodeFetch;
+global.Response = nodeFetch.Response;
+global.Headers = nodeFetch.Headers;
+global.Request = nodeFetch.Request;
 
-/*
-	Options:
-		server			ReactDomServer or server with compatible APIs
-		code			Javascript sourcecode string
-		file 			Filename to designate the code from in NodeJS (visually noted within thrown errors)
-		locale 			Specific locale to use in rendering
-		externals		filepath to external Enact framework to use with rendering
-*/
+const prerenderCache = path.join(findCacheDir({
+	name: 'enact-dev',
+	create: true
+}), 'prerender');
+let chunkTarget;
+
+if(!fs.existsSync(prerenderCache)) fs.mkdirSync(prerenderCache);
+
 module.exports = {
+	/*
+		Stages a target chunk of sourcecode to a temporary directory to be prerendered.
+		Parameters:
+			code 				Target chunk's sourcecode string
+			opts:
+				chunk 			Chunk filename; used to visually note within thrown errors
+				externals		Filepath to external Enact framework to use with rendering
+	*/
 	stage: function(code, opts) {
 		code = code.replace('return __webpack_require__(0);', '__webpack_require__.e = function() {};\nreturn __webpack_require__(0);');
 
@@ -50,45 +44,71 @@ module.exports = {
 			code = code.replace(/require\(["']enact_framework["']\)/g, 'require("'
 					+ path.resolve(path.join(opts.externals, 'enact.js')) +  '")');
 		}
-		fs.writeFileSync(renderTarget, code, {encoding:'utf8'});
+		chunkTarget = path.join(prerenderCache, opts.chunk);
+		fs.writeFileSync(chunkTarget, code, {encoding:'utf8'})
 	},
 
+	/*
+		Renders the staged chunk with desired options used.
+		Parameters:
+			opts:
+				server			ReactDomServer or server with compatible APIs
+				locale 			Specific locale to use in rendering
+				externals		Filepath to external Enact framework to use with rendering
+		Returns:
+			HTML static rendered string of the app's initial state.
+	*/
 	render: function(opts) {
-		var rendered;
+		if(!chunkTarget) throw new Error('Source code not staged, unable render vdom into HTML string.');
+		const head = [];
+		let rendered;
 
 		if(opts.locale) {
-			sandbox.XMLHttpRequest = sandbox.global.XMLHttpRequest = FileXHR;
+			global.XMLHttpRequest = FileXHR;
 		} else {
-			delete sandbox.XMLHttpRequest;
-			delete sandbox.global.XMLHttpRequest;
+			delete global.XMLHttpRequest;
 		}
 
 		try {
 			console.mute();
 
+			global.enactHooks = global.enactHooks || {};
+			global.enactHooks.prerender = function(hook) {
+				if(hook.appendToHead) {
+					head.push(hook.appendToHead);
+				}
+			};
+
 			if(opts.externals) {
 				// Ensure locale switching  support is loaded globally with external framework usage.
-				var framework = require(path.resolve(path.join(opts.externals, 'enact.js')));
-				sandbox.iLibLocale = sandbox.global.iLibLocale = framework('@enact/i18n/locale');
+				const framework = require(path.resolve(path.join(opts.externals, 'enact.js')));
+				global.iLibLocale = framework('@enact/i18n/locale');
 			} else {
-				delete sandbox.iLibLocale;
-				delete sandbox.global.iLibLocale;
+				delete global.iLibLocale
 			}
 
-			m.exports = {};
-			vm.runInContext('module.exports = requireUncached("' + path.resolve(renderTarget) + '");', context, {
-				filename: opts.file,
-				displayErrors: true
-			});
+			const chunk = requireUncached(path.resolve(chunkTarget));
 
 			// Update locale if needed.
-			if(opts.locale && sandbox.global.iLibLocale && sandbox.global.iLibLocale.updateLocale) {
+			if(opts.locale && global.iLibLocale && global.iLibLocale.updateLocale) {
 				console.resume();
-				sandbox.global.iLibLocale.updateLocale(opts.locale);
+				global.iLibLocale.updateLocale(opts.locale);
 				console.mute();
 			}
 
-			rendered = opts.server.renderToString(m.exports['default'] || m.exports);
+			rendered = opts.server.renderToString(chunk['default'] || chunk);
+			if(head.length>0) {
+				let prepend = '<!-- head append start -->';
+				for(let i=0; i<head.length; i++) {
+					prepend += '\t' + head[i].replace(/\n/g, '\n\t') + '\n';
+				}
+				prepend += '<!-- head append end -->';
+				rendered = prepend + rendered;
+			}
+
+
+			// If --expose-gc is used in NodeJS, force garbage collect after prerender for minimal memory usage.
+			if(global.gc) global.gc();
 
 			console.resume();
 		} catch(e) {
@@ -98,9 +118,10 @@ module.exports = {
 		return rendered;
 	},
 
+	/*
+		Deletes any staged sourcecode cunks
+	*/
 	unstage: function() {
-		if(fs.existsSync(renderTarget)) {
-			fs.unlinkSync(renderTarget);
-		}
+		if(chunkTarget && fs.existsSync(chunkTarget)) fs.unlinkSync(chunkTarget);
 	}
 };
