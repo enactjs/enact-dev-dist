@@ -21,5 +21,5 @@ Portions of enact-cli are based upon [create-react-app](https://github.com/faceb
 
 Node.js binaries are licensed under MIT license (see `node_binaries/LICENSE`), Copyright Node.js contributors. All rights reserved. Source available at https://github.com/nodejs/node
 
-NPM application is licensed under The Artistic License 2.0, Copyright (c) npm, Inc. and Contributors. Source available at https://github.com/npm/npm
+NPM application is licensed under The Artistic License 2.0 (see `node_binaries/npm/LICENSE`), Copyright (c) npm, Inc. and Contributors. Source available at https://github.com/npm/npm
 Node package dependencies, Copyright (c) their respective copyright owners. Licensed on their respective license terms.
