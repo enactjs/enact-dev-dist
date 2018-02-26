@@ -1,8 +1,8 @@
 # enact-dev-dist
 
-This repository exists to tag flat full distributions of enact-cli, self-containing NodeJS binaries, and NPM.
+**Not for general usage. Developers should use [@enact/cli](https://github.com/enactjs/cli) instead.**
 
-It is intended to be updated directly from enact-cli, so no devlopment should occur here. This is a temporary repository, serving to supply enact-cli into the webOS build tools and is not intended for general use.
+This repository exists to tag flat full distributions of enact-cli, self-containing NodeJS binaries, and NPM. It is intended to be updated periodically from @enact/cli, so no devlopment should occur here. This is a temporary repository, serving to supply @enact/cli into the webOS build tools and is not intended for general use.
 
 
 ### Copyright and License Information
