@@ -1,3 +1,109 @@
+## 1.0.2 (March 30, 2018)
+
+Updated [`resolution-independence`](https://github.com/enactjs/less-plugin-resolution-independence) plugin dependency with fixed support Less 3.x.
+Updated [`@enact/dev-utils`](https://github.com/enactjs/dev-utils) dependency with fixes for resolution-independence configuration autodetection and React16-based framework builds.
+
+## 1.0.1 (March 26, 2018)
+
+## pack
+
+* Updated `@enact/dev-utils` fixing React 16 issues with v8 snapshot support.
+
+## template
+
+* Fixed automatic name detection for NPM packages when using version/tag specifiers.
+
+## lint
+
+* Added `--framework` temporary alias for `--strict` to fix build systems while they update to current syntax.
+
+## 1.0.0 (March 15, 2018)
+
+Dependency updates for most components.
+Moved all plugins, mixins, and utility functions into [@enact/dev-utils](https://www.npmjs.com/package/@enact/dev-utils) package.
+Refactored all commands to support Promise-based API access for potential integration with 3rd party build systems.
+Enact CLI source code now updated for [`eslint-plugin-import`](https://github.com/benmosher/eslint-plugin-import) and [`prettier`](https://github.com/prettier/prettier) formatting.
+
+## create
+
+* Default moonstone template updated for latest Enact 1.x/React 15.x dependencies.
+* Updated to support customized templates via `-t`/`--templates` option.
+* Refactored creation handling to be general purpose and support dynamic templates modifying the execution.
+
+## link
+
+* Only link `@enact`-scoped dependencies found within the project `package.json` rather than all globally linked `@enact`-scoped packages.
+
+## transpile
+
+* Added support for `-i`/`--ignore` regex string to ignore filepathes when transpiling/copying.
+
+## pack
+
+* Added support for targeted builds. Can be set via a `target` enact `package.json` property or via [Browserslist](https://github.com/ai/browserslist) format.
+* Added support for Electron build target.
+* Switched to use `@babel/preset-env` and `@babel/polyfill` for on-demand transpiling/polyfilling to targetted build platforms.
+* Production mode build uses `uglifyjs-webpack-plugin` to support ES6-based minification (until the upgrade to webpack 4)
+* Dynamic handling of the `enact` options with `package.json`, with support for `theme` preset values that simplify setup of for given Enact GUI theme libraries.
+* Allow `electron-renderer` webpack target to support `browser` as a main field.
+* Isomorphic builds now build `en-US` locale by default. Switched `-l`/`--locales` as a public option, allowing specifying of locale-lists for prerendering.
+* Switched `-s`/`--snapshot` as a public option. Creates a v8 snapshot blob from the app bundle (provided mksnapshot binary is provided as `V8_MKSNAPSHOT` environment variable).
+* Updated to Webpack 3.x support.
+* Updated to Babel 7.x beta support.
+
+## serve
+
+* Allows attempted serving on all webpack targets other that `node`, `async-node` and `webworker`.
+
+## test
+
+* Fixed testing support for Windows when using modules that accessed `@enact/i18n`.
+
+## template
+
+* Full template management support. See the [docs](./docs/template-management.md) for more details.
+* Templates can be sourced from git URIs, npm packages, or local directories.
+* Able to install, link, remove, list templates.
+* Able to set templates as default when using `enact create`.
+* Templates can be static or dynamic generators, optionally hooking into the `enact create` execution.
+
+## lint
+
+* Added a `--fix` option to automatically attempt to have eslint fix linting errors.
+
+## license
+
+* Updated to include `@babel/polyfill` and `@babel/core` licenses in project scanning.
+
+## 0.9.8 (February 15, 2018)
+
+* Updated all links for enactjs github organization and fixed a broken docs link.
+
+### serve
+
+* Restored usage of extract-text-webpack-plugin with updated Webpack 3.6.0.
+
+## 0.9.7 (January 11, 2018)
+
+Updated copyright and license information for 2018 year.
+Minor updates to documentation phrasing.
+Fixed root-level `-h`/`--help` overriding command-level help information.
+
+## 0.9.6 (December 21, 2017)
+
+Renamed from `enact-dev` to `@enact/cli` for consistency, along with updated documentation.
+
+## 0.9.5 (December 14, 2017)
+
+Locked down dependencies to avoid potential regressions in patch updates to dependencies (as was the case with [2.0.8 karma-webpack](https://github.com/webpack-contrib/karma-webpack/issues/284)).
+
+## 0.9.4 (November 13, 2017)
+
+### pack
+
+* Improved prerender base font detection on irregular screens.
+* Deep linking now injects prerendered app HTML dynamically, rather than removing prerendered HTML nodes.
+
 ## 0.9.2 (September 7, 2017)
 
 ### create
@@ -117,7 +223,7 @@ Added support for a link command (`enact link`) as a shorthand to link in Enact 
 * Will now warn about performance when building in development mode.
 * HTML template will now be used in all situations and can be customized as desired.
 * Vastly rewritten isomorphic app prerendering support with improved reliability and mmemory management.
-* Depreciated prerendering of isomorphic apps within the HTML template has been removed. Please ensure all app entrypoints are able to self-render. See [this example](https://github.com/enyojs/enact-dev/blob/master/template/src/index.js).
+* Depreciated prerendering of isomorphic apps within the HTML template has been removed. Please ensure all app entrypoints are able to self-render. See [this example](https://github.com/enactjs/cli/blob/master/template/src/index.js).
 
 ### test
 
@@ -161,14 +267,14 @@ All enact-dev dependencies have been updated to latest applicable revisions. If 
 
 ### pack
 
-* Added a `node` Enact build option to support polyfilling NodeJS components. See [here](https://github.com/enyojs/enact-dev/blob/master/README.md#enact-build-options) for more info.
+* Added a `node` Enact build option to support polyfilling NodeJS components. See [here](https://github.com/enactjs/cli/blob/master/README.md#enact-build-options) for more info.
 * All localized appinfo.json resources and assets will now be correctly copied to the output directory.
 
 ### test
 
 * Added a polyfill for String.prototype.repeat, as phantomjs lacks the API.
 * Webpack build warnings will no longer spam the console in certain scenarios.
-* Test action will now automatically fail when no test suite is found. This was done to allows tests which build incorrect or have missing modules to correctly fail. See [#38](https://github.com/enyojs/enact-dev/pull/38) for more background information.
+* Test action will now automatically fail when no test suite is found. This was done to allows tests which build incorrect or have missing modules to correctly fail. See [#38](https://github.com/enactjs/cli/pull/38) for more background information.
 
 
 ## 0.5.0 (December 20, 2016)
@@ -178,7 +284,7 @@ Several additional documentation files have been added to the `docs` directory, 
 ### create
 
 * Template updated for Enact 1.0.0-beta.1
-* Template has been updated to use a single isomorphic-compatible entrypoint [index.js](https://github.com/enyojs/enact-dev/blob/master/template/src/index.js).
+* Template has been updated to use a single isomorphic-compatible entrypoint [index.js](https://github.com/enactjs/cli/blob/master/template/src/index.js).
 
 ## serve
 

@@ -1,31 +1,45 @@
 // @remove-on-eject-begin
 /**
- * Copyright (c) 2015-present, Facebook, Inc.
- * All rights reserved.
+ * Portions of this source code file are from create-react-app, used under the
+ * following MIT license:
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * Copyright (c) 2013-present, Facebook, Inc.
+ * https://github.com/facebookincubator/create-react-app
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 // @remove-on-eject-end
 
 const path = require('path');
-const {DefinePlugin, optimize:{UglifyJsPlugin}} = require('webpack');
 const autoprefixer = require('autoprefixer');
+const CaseSensitivePathsPlugin = require('case-sensitive-paths-webpack-plugin');
+const ExtractTextPlugin = require('extract-text-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 const flexbugfixes = require('postcss-flexbugs-fixes');
 const removeclass = require('postcss-remove-classes').default;
-const LessPluginRi = require('resolution-independence');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const ExtractTextPlugin = require('extract-text-webpack-plugin');
-const GracefulFsPlugin = require('graceful-fs-webpack-plugin');
-const ILibPlugin = require('ilib-webpack-plugin');
-const WebOSMetaPlugin = require('webos-meta-webpack-plugin');
 const eslintFormatter = require('react-dev-utils/eslintFormatter');
-const findProjectRoot = require('../global-cli/modifiers/util/find-project-root');
+const LessPluginRi = require('resolution-independence');
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
+const {DefinePlugin} = require('webpack');
+const {optionParser: app, GracefulFsPlugin, ILibPlugin, WebOSMetaPlugin} = require('@enact/dev-utils');
 
-process.chdir(findProjectRoot().path);
-const pkg = require(path.resolve('./package.json'));
-const enact = pkg.enact || {};
+process.chdir(app.context);
 
 // This is the production configuration.
 // It compiles slowly and is focused on producing a fast and minimal bundle.
@@ -37,10 +51,7 @@ module.exports = {
 	devtool: false,
 	// In production, we only want to load the polyfills and the app code.
 	entry: {
-		main: [
-			require.resolve('./polyfills'),
-			path.resolve(pkg.main || 'index.js')
-		]
+		main: [require.resolve('./polyfills'), app.context]
 	},
 	output: {
 		// The build output directory.
@@ -57,27 +68,22 @@ module.exports = {
 		extensions: ['.js', '.jsx', '.json'],
 		// Allows us to specify paths to check for module resolving.
 		modules: [path.resolve('./node_modules'), 'node_modules'],
+		// Allow "browser" field in electron-renderer along with the default web/webworker types.
+		mainFields: [
+			['web', 'webworker', 'electron-renderer'].includes(app.environment) && 'browser',
+			'module',
+			'main'
+		].filter(Boolean),
 		alias: {
-			// @remove-on-eject-begin
-			'promise/lib/rejection-tracking': require.resolve('promise/lib/rejection-tracking'),
-			'promise/lib/es6-extensions': require.resolve('promise/lib/es6-extensions'),
-			'whatwg-fetch': require.resolve('whatwg-fetch'),
-			'object-assign': require.resolve('object-assign'),
-			'string.fromcodepoint': require.resolve('string.fromcodepoint'),
-			'string.prototype.codepointat': require.resolve('string.prototype.codepointat'),
-			// @remove-on-eject-end
 			// Support ilib shorthand alias for ilib modules
-			'ilib':'@enact/i18n/ilib/lib'
+			ilib: '@enact/i18n/ilib/lib'
 		}
 	},
 	// @remove-on-eject-begin
 	// Resolve loaders (webpack plugins for CSS, images, transpilation) from the
-	// directory of `enact-dev` itself rather than the project directory.
+	// directory of `@enact/cli` itself rather than the project directory.
 	resolveLoader: {
-		modules: [
-			path.resolve(__dirname, '../node_modules'),
-			path.resolve('./node_modules')
-		]
+		modules: [path.resolve(__dirname, '../node_modules'), path.resolve('./node_modules')]
 	},
 	// @remove-on-eject-end
 	module: {
@@ -115,13 +121,19 @@ module.exports = {
 			{
 				test: /\.(js|jsx)$/,
 				exclude: /node_modules.(?!@enact)/,
-				loader: require.resolve('babel-loader'),
-				// @remove-on-eject-begin
-				options: {
-					babelrc: false,
-					extends: path.join(__dirname, '.babelrc')
-				}
-				// @remove-on-eject-end
+				use: [
+					require.resolve('thread-loader'),
+					{
+						loader: require.resolve('babel-loader'),
+						options: {
+							// @remove-on-eject-begin
+							babelrc: false,
+							extends: path.join(__dirname, '.babelrc.js'),
+							// @remove-on-eject-end
+							highlightCode: true
+						}
+					}
+				]
 			},
 			// Multiple styling-support features are used together.
 			// "less" loader compiles any LESS-formatted syntax into standard CSS.
@@ -153,12 +165,7 @@ module.exports = {
 								plugins: () => [
 									// Automatically add vendor CSS prefixes.
 									autoprefixer({
-										browsers: [
-											'>1%',
-											'last 4 versions',
-											'Firefox ESR',
-											'not ie < 9' // React doesn't support IE8 anyway.
-										],
+										browsers: app.browsers,
 										flexbox: 'no-2009',
 										remove: false
 									}),
@@ -174,7 +181,7 @@ module.exports = {
 							loader: require.resolve('less-loader'),
 							options: {
 								// If resolution independence options are specified, use the LESS plugin.
-								plugins: ((enact.ri) ? [new LessPluginRi(enact.ri)] : [])
+								plugins: app.ri ? [new LessPluginRi(app.ri)] : []
 							}
 						}
 					]
@@ -184,8 +191,10 @@ module.exports = {
 			// Remember to add the new extension(s) to the "file" loader exclusion regex list.
 		]
 	},
+	// Target app to build for a specific environment (default 'web')
+	target: app.environment,
 	// Optional configuration for polyfilling NodeJS built-ins.
-	node: enact.node,
+	node: app.nodeBuiltins,
 	performance: {
 		hints: false
 	},
@@ -194,13 +203,13 @@ module.exports = {
 		new HtmlWebpackPlugin({
 			// Title can be specified in the package.json enact options or will
 			// be determined automatically from any appinfo.json files discovered.
-			title: enact.title || '',
+			title: app.title || '',
 			inject: 'body',
-			template: enact.template || path.join(__dirname, 'html-template.ejs'),
+			template: app.template || path.join(__dirname, 'html-template.ejs'),
 			xhtml: true,
 			minify: {
 				removeComments: true,
-				collapseWhitespace:false,
+				collapseWhitespace: false,
 				removeRedundantAttributes: true,
 				useShortDoctype: true,
 				removeEmptyAttributes: true,
@@ -217,24 +226,32 @@ module.exports = {
 		// Otherwise React will be compiled in the very slow development mode.
 		new DefinePlugin({
 			'process.env': {
-				'NODE_ENV': '"production"'
+				NODE_ENV: '"production"'
 			}
 		}),
 		// Minify the code.
 		new UglifyJsPlugin({
-			compress: {
-				warnings: false,
-				// This feature has been reported as buggy a few times, such as:
-				// https://github.com/mishoo/UglifyJS2/issues/1964
-				// We'll wait with enabling it by default until it is more solid.
-				reduce_vars: false
-			},
-			output: {
-				comments: false
+			uglifyOptions: {
+				compress: {
+					warnings: false,
+					// Disabled because of an issue with Uglify breaking seemingly valid code:
+					// https://github.com/facebookincubator/create-react-app/issues/2376
+					// Pending further investigation:
+					// https://github.com/mishoo/UglifyJS2/issues/2011
+					comparisons: false
+				},
+				output: {
+					comments: false,
+					// Turned on because emoji and regex is not minified properly using default
+					// https://github.com/facebookincubator/create-react-app/issues/2488
+					ascii_only: true
+				}
 			}
 		}),
 		// Note: this won't work without ExtractTextPlugin.extract(..) in `loaders`.
 		new ExtractTextPlugin('[name].css'),
+		// Ensure correct casing in module filepathes
+		new CaseSensitivePathsPlugin(),
 		// Switch the internal NodeOutputFilesystem to use graceful-fs to avoid
 		// EMFILE errors when hanndling mass amounts of files at once, such as
 		// what happens when using ilib bundles/resources.
