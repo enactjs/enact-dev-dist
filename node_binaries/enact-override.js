@@ -6,7 +6,17 @@ if(path.isAbsolute(override)) {
 	override = path.relative(process.cwd(), override);
 }
 
-['package.json', 'package-lock.json',, 'npm-shrinkwrap.json'].forEach(f => {
+function updateDep(meta, key) {
+	if(fs.existsSync(path.join(override, ...key.split('/'), 'package.tgz'))) {
+		meta.dependencies[key] = meta.dependencies[key] || {};
+		meta.dependencies[key].resolved = `file:${override}/${key}/package.tgz`;
+		delete meta.dependencies[key].from;
+		delete meta.dependencies[key].integrity;
+		delete meta.dependencies[key].requires;
+	}
+}
+
+['package-lock.json', 'npm-shrinkwrap.json'].forEach(f => {
 	if(fs.existsSync(f)) {
 		if(fs.existsSync(f + '.bak')) {
 			fs.unlinkSync(f);
@@ -14,18 +24,17 @@ if(path.isAbsolute(override)) {
 		}
 
 		const obj = JSON.parse(fs.readFileSync(f, {encoding:'utf8'}));
-		['dependencies', 'devDependencies'].forEach(x => {
-			Object.keys(obj[x] || {}).forEach(key => {
-				if(fs.existsSync(path.join(override, ...key.split('/'), 'package.tgz'))) {
-					if(typeof obj[x][key] === 'object') {
-						obj[x][key].resolved = `file:${override}/${key}/package.tgz`;
-						delete obj[x][key].integrity;
-					} else {
-						obj[x][key] = `file:${override}/${key}/package.tgz`;
-					}
-				}
-			});
-		});
+		obj.lockfileVersion = 1;
+		obj.requires = true;
+		fs.readdirSync(override).forEach(dep => {
+			if(dep.startsWith('@')) {
+				fs.readdirSync(path.join(override, dep)).forEach(scoped => {
+					updateDep(obj, dep + '/' + scoped);
+				});
+			} else {
+				updateDep(obj, dep);
+			}
+		})
 		fs.renameSync(f, f + '.bak');
 		fs.writeFileSync(f, JSON.stringify(obj, null, '  '), {encoding:'utf8'});
 	}
