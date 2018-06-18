@@ -139,18 +139,18 @@ function load_ (builtin, rc, cli, cb) {
     }
   })
 
-  function afterPrefix () {
-    conf.addFile(conf.get('userconfig'), 'user')
-    conf.once('error', cb)
-    conf.once('load', afterUser)
-  }
-
-function cutTail(str, tail) {
+  function cutTail(str, tail) {
     var position = str.length-tail.length;
     if (position>=0 && str.substring(position) === tail) {
       return str.substring(0, position);
     }
     return str;
+  }
+
+  function afterPrefix () {
+    conf.addFile(conf.get('userconfig'), 'user')
+    conf.once('error', cb)
+    conf.once('load', afterUser)
   }
 
   function afterUser () {
@@ -161,17 +161,10 @@ function cutTail(str, tail) {
     // annoying humans and their expectations!
     if (conf.get('prefix')) {
       var etc = path.resolve(cutTail(conf.get('prefix'), '/opt/enact-dev/node_binaries'), 'etc')
-      mkdirp(etc, function () {
-        defaults.globalconfig = path.resolve(etc, 'npmrc')
-        defaults.globalignorefile = path.resolve(etc, 'npmignore')
-        afterUserContinuation()
-      })
-    } else {
-      afterUserContinuation()
+      defaults.globalconfig = path.resolve(etc, 'npmrc')
+      defaults.globalignorefile = path.resolve(etc, 'npmignore')
     }
-  }
 
-  function afterUserContinuation () {
     conf.addFile(conf.get('globalconfig'), 'global')
 
     // move the builtin into the conf stack now.
