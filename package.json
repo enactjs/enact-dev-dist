@@ -1,6 +1,6 @@
 {
   "name": "@enact/cli",
-  "version": "1.0.10",
+  "version": "1.0.12",
   "description": "Full-featured build environment tool for Enact applications.",
   "main": "index.js",
   "author": "Jason Robitaille <jason.robitaille@lge.com>",
