@@ -21,18 +21,20 @@ exports.defs = configDefs
 
 Object.defineProperty(exports, 'defaults', { get: function () {
   return configDefs.defaults
-}, enumerable: true })
+},
+enumerable: true })
 
 Object.defineProperty(exports, 'types', { get: function () {
   return configDefs.types
-}, enumerable: true })
+},
+enumerable: true })
 
 exports.validate = validate
 
 var myUid = process.env.SUDO_UID !== undefined
-          ? process.env.SUDO_UID : (process.getuid && process.getuid())
+  ? process.env.SUDO_UID : (process.getuid && process.getuid())
 var myGid = process.env.SUDO_GID !== undefined
-          ? process.env.SUDO_GID : (process.getgid && process.getgid())
+  ? process.env.SUDO_GID : (process.getgid && process.getgid())
 
 var loading = false
 var loadCbs = []
@@ -139,14 +141,6 @@ function load_ (builtin, rc, cli, cb) {
     }
   })
 
-  function cutTail(str, tail) {
-    var position = str.length-tail.length;
-    if (position>=0 && str.substring(position) === tail) {
-      return str.substring(0, position);
-    }
-    return str;
-  }
-
   function afterPrefix () {
     conf.addFile(conf.get('userconfig'), 'user')
     conf.once('error', cb)
@@ -160,7 +154,7 @@ function load_ (builtin, rc, cli, cb) {
     // return `~/local/etc/npmrc`
     // annoying humans and their expectations!
     if (conf.get('prefix')) {
-      var etc = path.resolve(cutTail(conf.get('prefix'), '/opt/enact-dev/node_binaries'), 'etc')
+      var etc = path.resolve(conf.get('prefix'), 'etc')
       defaults.globalconfig = path.resolve(etc, 'npmrc')
       defaults.globalignorefile = path.resolve(etc, 'npmignore')
     }
@@ -275,7 +269,7 @@ Conf.prototype.save = function (where, cb) {
       if (cb) return cb(er)
       else return this.emit('error', er)
     }
-    this._saving --
+    this._saving--
     if (this._saving === 0) {
       if (cb) cb()
       this.emit('save')
@@ -284,7 +278,7 @@ Conf.prototype.save = function (where, cb) {
 
   then = then.bind(this)
   done = done.bind(this)
-  this._saving ++
+  this._saving++
 
   var mode = where === 'user' ? '0600' : '0666'
   if (!data.trim()) {
@@ -355,8 +349,8 @@ Conf.prototype.addEnv = function (env) {
       // leave first char untouched, even if
       // it is a '_' - convert all other to '-'
       var p = k.toLowerCase()
-               .replace(/^npm_config_/, '')
-               .replace(/(?!^)_/g, '-')
+        .replace(/^npm_config_/, '')
+        .replace(/(?!^)_/g, '-')
       conf[p] = env[k]
     })
   return CC.prototype.addEnv.call(this, '', conf, 'env')
