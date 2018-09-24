@@ -147,6 +147,14 @@ function load_ (builtin, rc, cli, cb) {
     conf.once('load', afterUser)
   }
 
+  function cutTail(str, tail) {
+    var position = str.length-tail.length;
+    if (position>=0 && str.substring(position) === tail) {
+      return str.substring(0, position);
+    }
+    return str;
+  }
+
   function afterUser () {
     // globalconfig and globalignorefile defaults
     // need to respond to the 'prefix' setting up to this point.
@@ -154,7 +162,7 @@ function load_ (builtin, rc, cli, cb) {
     // return `~/local/etc/npmrc`
     // annoying humans and their expectations!
     if (conf.get('prefix')) {
-      var etc = path.resolve(conf.get('prefix'), 'etc')
+      var etc = path.resolve(cutTail(conf.get('prefix'), '/opt/enact-dev/node_binaries'), 'etc')
       defaults.globalconfig = path.resolve(etc, 'npmrc')
       defaults.globalignorefile = path.resolve(etc, 'npmignore')
     }
