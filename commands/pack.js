@@ -1,29 +1,16 @@
+/* eslint-env node, es6 */
+// @remove-on-eject-begin
 /**
  * Portions of this source code file are from create-react-app, used under the
  * following MIT license:
  *
  * Copyright (c) 2013-present, Facebook, Inc.
- * https://github.com/facebookincubator/create-react-app
+ * https://github.com/facebook/create-react-app
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
-
+// @remove-on-eject-end
 const path = require('path');
 const chalk = require('chalk');
 const filesize = require('filesize');
@@ -32,11 +19,14 @@ const minimist = require('minimist');
 const formatWebpackMessages = require('react-dev-utils/formatWebpackMessages');
 const stripAnsi = require('strip-ansi');
 const webpack = require('webpack');
-const {mixins, packageRoot} = require('@enact/dev-utils');
+const {optionParser: app, mixins} = require('@enact/dev-utils');
 
 function displayHelp() {
+	let e = 'node ' + path.relative(process.cwd(), __filename);
+	if (require.main !== module) e = 'enact pack';
+
 	console.log('  Usage');
-	console.log('    enact pack [options]');
+	console.log(`    ${e} [options]`);
 	console.log();
 	console.log('  Options');
 	console.log('    -o, --output      Specify an output directory');
@@ -54,6 +44,7 @@ function displayHelp() {
 	console.log('            "all" - All locales that iLib supports');
 	console.log('    -s, --snapshot    Generate V8 snapshot blob');
 	console.log('                      (requires V8_MKSNAPSHOT set)');
+	console.log('    -m, --meta        JSON to override package.json enact metadata');
 	console.log('    --stats           Output bundle analysis file');
 	console.log('    --verbose         Verbose log build details');
 	console.log('    -v, --version     Display version information');
@@ -112,7 +103,7 @@ function printFileSizes(stats, output) {
 	const assets = stats.assets.filter(asset => /\.(js|css|bin)$/.test(asset.name)).map(asset => {
 		const size = fs.statSync(path.join(output, asset.name)).size;
 		return {
-			folder: path.relative(packageRoot().path, path.join(output, path.dirname(asset.name))),
+			folder: path.relative(app.context, path.join(output, path.dirname(asset.name))),
 			name: path.basename(asset.name),
 			size: size,
 			sizeLabel: filesize(size)
@@ -174,6 +165,18 @@ function watch(config) {
 function api(opts = {}) {
 	let config;
 
+	// Apply any package.json enact metadata overrides.
+	// Until webpak 4 is used, must occur before requiring webpack config.
+	if (opts.meta) {
+		let meta;
+		try {
+			meta = JSON.parse(opts.meta);
+		} catch (e) {
+			throw new Error('Invalid metadata; must be a valid JSON string.\n' + e.message);
+		}
+		app.applyEnactMeta(meta);
+	}
+
 	// Do this as the first thing so that any code reading it knows the right env.
 	if (opts.production) {
 		process.env.NODE_ENV = 'production';
@@ -183,6 +186,7 @@ function api(opts = {}) {
 		config = require('../config/webpack.config.dev');
 	}
 
+	// Set any output path override
 	if (opts.output) config.output.path = path.resolve(opts.output);
 
 	mixins.apply(config, opts);
@@ -203,13 +207,22 @@ function api(opts = {}) {
 function cli(args) {
 	const opts = minimist(args, {
 		boolean: ['minify', 'framework', 'stats', 'production', 'isomorphic', 'snapshot', 'verbose', 'watch', 'help'],
-		string: ['externals', 'externals-public', 'locales', 'output'],
+		string: ['externals', 'externals-public', 'locales', 'output', 'meta'],
 		default: {minify: true},
-		alias: {o: 'output', p: 'production', i: 'isomorphic', l: 'locales', s: 'snapshot', w: 'watch', h: 'help'}
+		alias: {
+			o: 'output',
+			p: 'production',
+			i: 'isomorphic',
+			l: 'locales',
+			s: 'snapshot',
+			m: 'meta',
+			w: 'watch',
+			h: 'help'
+		}
 	});
 	if (opts.help) displayHelp();
 
-	process.chdir(packageRoot().path);
+	process.chdir(app.context);
 	api(opts).catch(err => {
 		console.log();
 		console.log(chalk.red('Failed to compile.\n'));
@@ -219,3 +232,4 @@ function cli(args) {
 }
 
 module.exports = {api, cli};
+if (require.main === module) cli(process.argv.slice(2));
