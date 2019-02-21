@@ -1,3 +1,115 @@
+## 2.0.2 (February 19, 2019)
+
+### lint
+
+* Added support for `eslint-plugin-jest`, with the `no-focused-tests` rule set to error for the strict ruleset (`--strict`).
+
+## 2.0.1 (February 13, 2019)
+
+### test
+
+* Fixed tests being ignored when out-of-project parent directories are named `coverage`, `dist`, or `build`. Such is the case on TravisCI.
+
+## 2.0.0 (February 11, 2019)
+
+Updated all dependencies to latest releases and added support for TypeScript. In keeping with community standards, CSS/LESS is now processed in the global scope, while modular CSS can be retained by using the `.module.css`/`.module.less` extension or setting the `forceCSSModules` Enact project setting in `package.json`.
+
+### create
+
+* Updated default included moonstone template for latest Enact with `.module.less` modular LESS naming format.
+
+### link
+
+* Improved handling and errors when linking into a non-Enact project.
+
+### pack
+
+* Refactored build procedure for latest Webpack 4 and Babel 7.
+* Added support for stage-3 CSS via `postcss-preset-env`, with `custom-properties` temporarily disabled while a bug is being resolved.
+* Added support for `.env` fileformat to declare environment variables for parsing/app-embedding.
+* Added support for TypeScript compilation.
+* Added opt-in support for TypeScript typechecking at buildtime (via `typescript` app-side dependency).
+* Additional CSS optimization applied via `optimize-css-assets-webpack-plugin`.
+* Modified Babel configuration to use built-in APIs rather than transpiling mini re-implementations.
+* Modified CSS file handling to only process modular CSS on the `.module.css` extension.
+* Modified LESS file handling to be independence (only running LESS files through the LESS compiler), with `.module.lesas` file extension enabled modular context.
+* Switched from `less-plugin-resolution-independence` to `postcss-plugin-resolution-independence` to apply to both LESS and CSS build chains.
+* Switched from `uglifyjs-webpack-plugin` to `terser-webpack-plugin` as Uglify is no longer actively developed.
+* Switched from `extract-text-webpack-plugin` to `mini-css-extract-plugin` for CSS content output.
+* Removed direct autoprefixer usage as `postcss-preset-env` contains embedded support.
+* Removed support for `.__DEV__` CSS class and replaced it with `@__DEV__` LESS variable for usage as a CSS guard.
+* Removed legacy custom browser targetting format and now following `browserslist` standard for desclaring supporting browsers.
+
+### lint
+
+* Added support for TSLint, when linting a TypeScript project and `tslint` is globally or locally installed.
+
+### test
+
+* Replaced Karma/PhantomJS/Mocha/DirtyChai testing stack with a Jest-based alternative implementation.
+  * Supports Jest options like `--watch` and `--coverage` as a result.
+* Removed custom Enzyme webpack plugin since we can pre-setup Enyme directly for Jest usage.
+* Removed Sinon in favour of Jest built-in mocking/spy functionality.
+
+### transpile
+
+* Added `--commonjs` option, enabled by default, which will convert all ES6 import/export statements into CommonJS.
+* LESS files will now be transpiled into CSS. Directories named `style` will not transpile LESS and will just copy the files (useful for sharing LESS variables/mixins). Directories named `internal`  within `styles` will be ignored.
+
+## 1.2.1 (December 7, 2018)
+
+* Fixed test execution failures where an old copy of Enzyme was erroring out on the latest React 1.6 releases.
+
+## 1.2.0 (September 27, 2018)
+
+* Updated to latest `@enact/dev-utils` and `mocha-react-proptype-checker` dependency releases.
+
+### create
+
+* Added `core-js` as a direct dependency when creating a new project with `--local` to prevent conflicting polyfill versions.
+
+### pack
+
+* Added support for `-m`/`--meta` option to override the `enact` object metadata from the `package.json`.
+
+## 1.1.1 (August 10, 2018)
+
+### create
+
+* Updated default included moonstone template for Enact 2.x.
+
+### pack
+
+* Fixed locale classes failing to be applied on a multi-locale prerender when deep-linking is used.
+* Fixed font style prerendering, with added support for font overrides.
+
+## 1.1.0 (July 16, 2018)
+
+### pack
+
+* Added new option `--verbose` which outputs detailed build information as the process ocurrs, for specific information on what modules are being process and when.
+* Added support for dynamically injecting `REACT_APP_` prefixed environment variables into app code, when used under `process.env`.
+* Added support for `@global-import "<file>";` syntax to import CSS files in a global context.
+* Added support for boolean flag option `externalStartup` in the enact options in a project's `package.json`. When true, any prerender startup scripts will be external file assets, rather than embedded inline javascript.
+* Fixed `@babel/polyfill` failing to be transpiled into targetted `core-js` components. Additionally now ensures polyfills aren't loaded more than once.
+* Fixed v8 snapshot support for React 16.4.1.
+* Relocated the old `./config/proptype-checker.js` into its own standalone [`mocha-react-proptype-checker`](https://www.npmjs.com/package/mocha-react-proptype-checker) package.
+* Production mode limits the UglifyJS options to ECMA 5 optimizations only.
+* Disabled CSS minifier support for calc simplification due to bugs with CSS variables that contain 'calc' string of letters. See https://github.com/postcss/postcss-calc/issues/50.
+
+### lint
+
+* Updated React ESLint plugin to `7.9.1` and Enact ESLint plugin to `1.2.0`.
+
+### template
+
+* Relocated default moonstone app template into a separate standalone [@enact/template-moonstone](https://www.npmjs.com/package/@enact/template-moonstone) package depdendency.
+
+### eject
+
+* Initial implementation of a `create-react-app`-style project ejection feature. A permanent process which extracts an app from the Enact CLI environment and converts it standalone, with exposed development tool config files.
+* Supports the `--bare` eject operation flag which removed the Enact CLI sugar from devtool commands and uses the barebones underlying 3rd party tools.
+
 ## 1.0.4 (April 26, 2018)
 
 Updated dependencies to support React/ReactDOM 16.3.2.

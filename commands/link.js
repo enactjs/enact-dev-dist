@@ -1,3 +1,4 @@
+// @remove-file-on-eject
 const path = require('path');
 const chalk = require('chalk');
 const spawn = require('cross-spawn');
@@ -11,7 +12,7 @@ function displayHelp() {
 	console.log('    enact link [options]');
 	console.log();
 	console.log('  Options');
-	console.log('    -verbose          Verbose output logging');
+	console.log('    --verbose         Verbose output logging');
 	console.log('    -v, --version     Display version information');
 	console.log('    -h, --help        Display help information');
 	console.log();
@@ -34,7 +35,9 @@ function api({verbose = false} = {}) {
 			}
 		}
 
-		if (missing.length === enact.length) {
+		if (enact.length === 0) {
+			reject(new Error('No Enact dependencies found within the package. Nothing to link.'));
+		} else if (missing.length === enact.length) {
 			reject(new Error('Unable to detect any Enact global modules. Please ensure they are linked correctly.'));
 		} else {
 			const proc = spawn('npm', linkArgs, {stdio: 'inherit', cwd: process.cwd()});
@@ -54,7 +57,7 @@ function cli(args) {
 		boolean: ['verbose', 'help'],
 		alias: {h: 'help'}
 	});
-	opts.help && displayHelp();
+	if (opts.help) displayHelp();
 
 	api(opts).catch(err => {
 		console.error(chalk.red('ERROR: ') + err.message);
