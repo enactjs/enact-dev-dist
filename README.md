@@ -1,15 +1,15 @@
 # enact-dev-dist
 
-This repository exists to tag flat full distributions of enact-cli, self-containing NodeJS binaries, and NPM.
+**Not for general usage. Developers should use [@enact/cli](https://github.com/enactjs/cli) instead.**
 
-It is intended to be updated directly from enact-cli, so no devlopment should occur here. This is a temporary repository, serving to supply enact-cli into the webOS build tools and is not intended for general use.
+This repository exists to tag flat full distributions of enact-cli, self-containing NodeJS binaries, and NPM. It is intended to be updated periodically from @enact/cli, so no devlopment should occur here. This is a temporary repository, serving to supply @enact/cli into the webOS build tools and is not intended for general use.
 
 
 ### Copyright and License Information
 
 Unless otherwise specified, all enact-cli source code files and documentation files in this repository are:
 
-Copyright (c) 2016-2018 LG Electronics
+Copyright (c) 2016-2019 LG Electronics
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 
