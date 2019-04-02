@@ -1,6 +1,8 @@
 const fs = require('fs');
 const jsdocToTs = require('../jsdoc-to-ts');
 
+const outputPath = process.argv[2] || '.';
+
 jsdocToTs({
 	package: '.',
 	output: fs.writeFileSync,
@@ -13,5 +15,5 @@ jsdocToTs({
 		spotlight: '@enact/spotlight',
 		i18n: '@enact/i18n'
 	},
-	outputPath: 'build'
+	outputPath
 });
