@@ -9,6 +9,7 @@ if(path.isAbsolute(override)) {
 function updateDep(meta, key, lockfile) {
 	if(fs.existsSync(path.join(override, ...key.split('/'), 'package.tgz'))) {
 		if(lockfile) {
+			meta.dependencies = meta.dependencies || {};
 			meta.dependencies[key] = meta.dependencies[key] || {};
 			meta.dependencies[key].version = `file:${override}/${key}/package.tgz`;
 			delete meta.dependencies[key].resolved;
