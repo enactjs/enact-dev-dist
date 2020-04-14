@@ -531,6 +531,10 @@ module.exports = {
       var isDirectProp = DIRECT_PROPS_REGEX.test(sourceCode.getText(node));
       var isInClassComponent = utils.getParentES6Component() || utils.getParentES5Component();
       var isNotInConstructor = !inConstructor(node);
+
+      if (isInClassComponent && utils.isKindComponent(isInClassComponent)) {
+        isInClassComponent = false;
+      }
       if (isDirectProp && isInClassComponent && isNotInConstructor) {
         return void 0;
       }
@@ -841,17 +845,30 @@ module.exports = {
 
     /**
      * Reports undeclared proptypes for a given component
+     * handlers can be used in computed, but not vice-versa.
+     * handlers and computed props can't reference others declared
+     * only in the same place.
      * @param {Object} component The component to process
      */
     function reportUndeclaredPropTypes(component) {
-      var allNames;
+      var allNames, target, isHandler, isComputed;
       for (var i = 0, j = component.usedPropTypes.length; i < j; i++) {
         allNames = component.usedPropTypes[i].allNames;
+        target = component.usedPropTypes[i].node;
+        isHandler = false;
+        isComputed = false;
+        if (target.type === 'Property' && target.parent.type === 'ObjectPattern') {
+          isComputed = isKindComputedFunction(target.parent.parent);
+          isHandler = isKindHandlerFunction(target.parent.parent);
+        }
+
         if (
           isIgnored(allNames[0]) ||
           isDeclaredInComponent(component.node, allNames) ||
-          (component.computedProps && component.computedProps.indexOf(allNames[0])>=0) ||
-          (component.handlersProps && component.handlersProps.indexOf(allNames[0])>=0)
+          // handlers and computed cannot reference computed props
+          (!isHandler && !isComputed && component.computedProps && component.computedProps.indexOf(allNames[0])>=0) ||
+          // handlers cannot reference other handlers props
+          (!isHandler && component.handlersProps && component.handlersProps.indexOf(allNames[0])>=0)
         ) {
           continue;
         }

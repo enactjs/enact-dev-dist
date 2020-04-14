@@ -12,25 +12,26 @@ const fs = require('fs');
 const path = require('path');
 const {optionParser: app} = require('@enact/dev-utils');
 
+const rbConst = name =>
+	'ILIB_' +
+	path
+		.basename(name)
+		.replace(/[-_\s]/g, '_')
+		.toUpperCase() +
+	'_PATH';
+
 const iLibDirs = ['node_modules/@enact/i18n/ilib', 'node_modules/ilib', 'ilib'];
 const globals = {
 	__DEV__: true,
 	ILIB_BASE_PATH: iLibDirs.find(f => fs.existsSync(path.join(app.context, f))) || iLibDirs[1],
 	ILIB_RESOURCES_PATH: 'resources',
-	ILIB_CACHE_ID: new Date().getTime() + ''
+	ILIB_CACHE_ID: new Date().getTime() + '',
+	[rbConst(app.name)]: 'resources'
 };
 
 for (let t = app.theme; t; t = t.theme) {
-	const themeEnv = path
-		.basename(t.name)
-		.replace(/[-_\s]/g, '_')
-		.toUpperCase();
-	globals[themeEnv] = path.relative(app.context, path.join(t.path, 'resources')).replace(/\\/g, '/');
-}
-
-if (app.name === '@enact/moonstone') {
-	globals.ILIB_MOONSTONE_PATH = 'resources';
-	globals.ILIB_RESOURCES_PATH = '_resources_';
+	const themeRB = path.join(t.path, 'resources');
+	globals[rbConst(t.name)] = path.relative(app.context, themeRB).replace(/\\/g, '/');
 }
 
 const ignorePatterns = [
@@ -38,7 +39,11 @@ const ignorePatterns = [
 	'/node_modules/',
 	'<rootDir>/(.*/)*coverage/',
 	'<rootDir>/(.*/)*build/',
-	'<rootDir>/(.*/)*dist/'
+	'<rootDir>/(.*/)*dist/',
+	'<rootDir>/(.*/)*docs/',
+	'<rootDir>/(.*/)*samples/',
+	'<rootDir>/(.*/)*tests/screenshot/',
+	'<rootDir>/(.*/)*tests/ui/'
 ];
 
 // Setup env var to signify a testing environment
@@ -76,6 +81,7 @@ module.exports = {
 	moduleNameMapper: {
 		'^.+\\.module\\.(css|less)$': require.resolve('identity-obj-proxy'),
 		'^enzyme$': require.resolve('enzyme'),
+		'^react$': require.resolve('react'),
 		// Backward compatibility for new iLib location with old Enact
 		'^ilib[/](.*)$': path.join(app.context, globals.ILIB_BASE_PATH, '$1'),
 		// Backward compatibility for old iLib location with new Enact
