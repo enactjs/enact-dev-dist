@@ -9,7 +9,7 @@ This repository exists to tag flat full distributions of enact-cli, self-contain
 
 Unless otherwise specified, all enact-cli source code files and documentation files in this repository are:
 
-Copyright (c) 2016-2020 LG Electronics
+Copyright (c) 2016-2021 LG Electronics
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 
